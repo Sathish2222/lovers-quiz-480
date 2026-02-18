@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
-import { Heart, Sparkles, Share2, RotateCcw, Settings, Plus, Trash2, Edit2, Save, X, Calculator, CheckSquare, Square } from 'lucide-react';
+import { Heart, Sparkles, Share2, RotateCcw, Settings, Plus, Trash2, Edit2, Save, X, Calculator, CheckSquare, Square, Lock, Unlock, LogOut, Key } from 'lucide-react';
 
 // Question bank with romantic couples questions
 const QUESTION_BANK = [
@@ -310,6 +310,308 @@ function UserCalculator() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// PUBLIC_INTERFACE
+/**
+ * Admin PIN Authentication Gate Component
+ * Requires PIN entry before allowing access to admin controls
+ * Persists authentication state in localStorage
+ * Provides logout and change PIN functionality
+ */
+function AdminPINGate({ children }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [showChangePIN, setShowChangePIN] = useState(false);
+  const [newPIN, setNewPIN] = useState('');
+  const [confirmPIN, setConfirmPIN] = useState('');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+
+  // Check if user is authenticated on mount
+  useEffect(() => {
+    const authStatus = localStorage.getItem('adminAuthenticated');
+    const authTimestamp = localStorage.getItem('adminAuthTimestamp');
+    const currentTime = Date.now();
+    
+    // Session expires after 24 hours
+    if (authStatus === 'true' && authTimestamp && (currentTime - parseInt(authTimestamp)) < 24 * 60 * 60 * 1000) {
+      setIsAuthenticated(true);
+    } else {
+      // Clear expired session
+      localStorage.removeItem('adminAuthenticated');
+      localStorage.removeItem('adminAuthTimestamp');
+    }
+  }, []);
+
+  // Get stored PIN or default PIN
+  const getStoredPIN = () => {
+    return localStorage.getItem('adminPIN') || '1234'; // Default PIN
+  };
+
+  // Handle PIN verification
+  const handlePINSubmit = (e) => {
+    e.preventDefault();
+    const storedPIN = getStoredPIN();
+    
+    if (pinInput === storedPIN) {
+      setIsAuthenticated(true);
+      localStorage.setItem('adminAuthenticated', 'true');
+      localStorage.setItem('adminAuthTimestamp', Date.now().toString());
+      setPinInput('');
+      setError('');
+    } else {
+      setError('Incorrect PIN. Please try again.');
+      setPinInput('');
+    }
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('adminAuthenticated');
+    localStorage.removeItem('adminAuthTimestamp');
+    setPinInput('');
+    setError('');
+  };
+
+  // Handle change PIN
+  const handleChangePIN = (e) => {
+    e.preventDefault();
+    
+    if (newPIN.length < 4) {
+      setError('PIN must be at least 4 characters');
+      return;
+    }
+    
+    if (newPIN !== confirmPIN) {
+      setError('PINs do not match');
+      return;
+    }
+    
+    localStorage.setItem('adminPIN', newPIN);
+    setNewPIN('');
+    setConfirmPIN('');
+    setShowChangePIN(false);
+    setError('');
+    alert('PIN changed successfully!');
+  };
+
+  // If not authenticated, show PIN entry screen
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-yellow-50 font-quicksand relative overflow-hidden">
+        {/* Floating hearts background */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden">
+          <FloatingHeart delay={0} size="small" left={10} />
+          <FloatingHeart delay={1} size="medium" left={25} />
+          <FloatingHeart delay={2} size="large" left={45} />
+          <FloatingHeart delay={1.5} size="small" left={65} />
+          <FloatingHeart delay={2.5} size="medium" left={80} />
+          <FloatingHeart delay={0.5} size="small" left={90} />
+        </div>
+
+        {/* PIN Entry Form */}
+        <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+          <div className="max-w-md w-full animate-fade-in">
+            <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-12">
+              {/* Header */}
+              <div className="text-center mb-8">
+                <div className="flex justify-center mb-4">
+                  <div className="bg-pink-100 rounded-full p-4">
+                    <Lock className="text-pink-500 w-12 h-12" />
+                  </div>
+                </div>
+                <h1 className="text-3xl md:text-4xl font-playfair font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 mb-2">
+                  Admin Access
+                </h1>
+                <p className="text-gray-600">
+                  Enter your PIN to access the admin panel
+                </p>
+              </div>
+
+              {/* PIN Input Form */}
+              <form onSubmit={handlePINSubmit} className="space-y-6">
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2 text-sm">
+                    Enter PIN
+                  </label>
+                  <input
+                    type="password"
+                    value={pinInput}
+                    onChange={(e) => {
+                      setPinInput(e.target.value);
+                      setError('');
+                    }}
+                    placeholder="Enter your PIN..."
+                    className="w-full px-6 py-4 rounded-full border-2 border-pink-200 focus:border-pink-400 focus:outline-none transition-colors text-gray-800 placeholder-gray-400 text-center text-2xl tracking-widest"
+                    autoFocus
+                  />
+                </div>
+
+                {error && (
+                  <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 text-center">
+                    <p className="text-red-600 font-medium">{error}</p>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-4 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg flex items-center justify-center gap-2"
+                >
+                  <Unlock className="w-5 h-5" />
+                  Unlock Admin Panel
+                </button>
+              </form>
+
+              {/* Back button */}
+              <div className="mt-6">
+                <button
+                  onClick={() => navigate('/')}
+                  className="w-full bg-white border-2 border-pink-300 hover:border-pink-400 text-pink-600 font-semibold py-3 px-6 rounded-full shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+                >
+                  Back to Quiz
+                </button>
+              </div>
+
+              {/* Info */}
+              <div className="mt-6 bg-pink-50/80 backdrop-blur-sm rounded-2xl p-4 border-2 border-pink-200">
+                <p className="text-gray-700 text-sm text-center">
+                  <strong>🔒 Default PIN:</strong> 1234
+                </p>
+                <p className="text-gray-600 text-xs text-center mt-2">
+                  You can change your PIN after logging in
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If authenticated, show admin controls with logout and change PIN options
+  return (
+    <div className="relative">
+      {/* Admin Header Bar with Logout and Change PIN */}
+      <div className="bg-gradient-to-r from-pink-500 to-rose-500 text-white py-3 px-4 shadow-lg">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Unlock className="w-5 h-5" />
+            <span className="font-semibold">Admin Mode Active</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowChangePIN(!showChangePIN)}
+              className="bg-white/20 hover:bg-white/30 backdrop-blur-sm py-2 px-4 rounded-full font-medium flex items-center gap-2 transition-all"
+              title="Change PIN"
+            >
+              <Key className="w-4 h-4" />
+              Change PIN
+            </button>
+            <button
+              onClick={handleLogout}
+              className="bg-white/20 hover:bg-white/30 backdrop-blur-sm py-2 px-4 rounded-full font-medium flex items-center gap-2 transition-all"
+              title="Logout"
+            >
+              <LogOut className="w-4 h-4" />
+              Logout
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Change PIN Modal */}
+      {showChangePIN && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full animate-scale-in">
+            <div className="text-center mb-6">
+              <div className="inline-block bg-pink-100 rounded-full p-3 mb-3">
+                <Key className="w-8 h-8 text-pink-500" />
+              </div>
+              <h2 className="text-2xl font-playfair font-bold text-gray-800 mb-2">
+                Change PIN
+              </h2>
+              <p className="text-gray-600 text-sm">
+                Enter a new PIN to secure your admin panel
+              </p>
+            </div>
+
+            <form onSubmit={handleChangePIN} className="space-y-4">
+              <div>
+                <label className="block text-gray-700 font-medium mb-2 text-sm">
+                  New PIN
+                </label>
+                <input
+                  type="password"
+                  value={newPIN}
+                  onChange={(e) => {
+                    setNewPIN(e.target.value);
+                    setError('');
+                  }}
+                  placeholder="Enter new PIN..."
+                  className="w-full px-4 py-3 rounded-full border-2 border-pink-200 focus:border-pink-400 focus:outline-none transition-colors text-gray-800 placeholder-gray-400"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-medium mb-2 text-sm">
+                  Confirm New PIN
+                </label>
+                <input
+                  type="password"
+                  value={confirmPIN}
+                  onChange={(e) => {
+                    setConfirmPIN(e.target.value);
+                    setError('');
+                  }}
+                  placeholder="Confirm new PIN..."
+                  className="w-full px-4 py-3 rounded-full border-2 border-pink-200 focus:border-pink-400 focus:outline-none transition-colors text-gray-800 placeholder-gray-400"
+                />
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-3 text-center">
+                  <p className="text-red-600 text-sm font-medium">{error}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowChangePIN(false);
+                    setNewPIN('');
+                    setConfirmPIN('');
+                    setError('');
+                  }}
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-6 rounded-full transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:shadow-xl transition-all"
+                >
+                  Save PIN
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-4 bg-pink-50 rounded-2xl p-3 border border-pink-200">
+              <p className="text-gray-700 text-xs text-center">
+                💡 Make sure to remember your new PIN. There is no recovery option.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Render protected admin content */}
+      {children}
     </div>
   );
 }
@@ -1006,7 +1308,11 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<QuizGame />} />
-        <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/admin" element={
+          <AdminPINGate>
+            <AdminPanel />
+          </AdminPINGate>
+        } />
         <Route path="/calculator" element={<UserCalculator />} />
       </Routes>
     </Router>
