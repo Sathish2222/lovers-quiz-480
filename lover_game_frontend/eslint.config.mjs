@@ -14,7 +14,14 @@ export default [
         document: true,
         window: true,
         test: true,
-        expect: true
+        expect: true,
+        navigator: true,
+        console: true,
+        setTimeout: true,
+        clearTimeout: true,
+        alert: true,
+        btoa: true,
+        atob: true
       }
     },
     rules: {

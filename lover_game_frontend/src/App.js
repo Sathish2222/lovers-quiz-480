@@ -177,15 +177,53 @@ function AdminQuiz() {
     setShareUrl(fullUrl);
   };
 
-  // Copy share link to clipboard
+  // Copy share link to clipboard with multiple fallback methods
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      // Method 1: Modern Clipboard API (preferred)
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 3000);
+        return;
+      }
+      
+      // Method 2: Legacy execCommand (fallback for older browsers)
+      const textArea = document.createElement('textarea');
+      textArea.value = shareUrl;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-9999px';
+      textArea.style.top = '-9999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        if (successful) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 3000);
+          return;
+        } else {
+          throw new Error('execCommand failed');
+        }
+      } catch (execErr) {
+        document.body.removeChild(textArea);
+        throw execErr;
+      }
     } catch (err) {
       console.error('Failed to copy:', err);
-      alert('Failed to copy link. Please copy manually.');
+      // Method 3: Manual selection fallback
+      const textInput = document.querySelector('.share-url-input');
+      if (textInput) {
+        textInput.select();
+        textInput.setSelectionRange(0, 99999); // For mobile devices
+        alert('Please press Ctrl+C (Cmd+C on Mac) to copy the link, or manually select and copy it.');
+      } else {
+        alert('Unable to copy automatically. Please manually select and copy the link above.');
+      }
     }
   };
 
@@ -353,8 +391,16 @@ function AdminQuiz() {
               <div className="mb-8">
                 <div className="bg-gray-50 border-2 border-gray-200 rounded-2xl p-4 mb-4">
                   <p className="text-sm text-gray-600 mb-2 font-medium">Shareable Link:</p>
-                  <p className="text-gray-800 text-sm font-mono break-all">
-                    {shareUrl}
+                  <input
+                    type="text"
+                    readOnly
+                    value={shareUrl}
+                    onClick={(e) => e.target.select()}
+                    className="share-url-input w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-800 text-sm font-mono break-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent"
+                    aria-label="Share URL"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    💡 Tip: Click the link to select it, then copy manually if needed
                   </p>
                 </div>
 
