@@ -728,6 +728,64 @@ function LoverQuiz() {
                         </div>
                       </div>
 
+                      {/* Per-Question Review */}
+                      <div className="mb-8">
+                        <h3 className="text-xl font-playfair font-bold text-gray-800 mb-4 text-left">
+                          Question Review
+                        </h3>
+                        <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                          {QUESTION_BANK.map((question, index) => {
+                            const isCorrect = loverAnswers[index] === adminAnswers[index];
+                            const loverAnswerText = question.options[loverAnswers[index]];
+                            const adminAnswerText = question.options[adminAnswers[index]];
+                            
+                            return (
+                              <div 
+                                key={index}
+                                className={`rounded-2xl p-4 border-2 ${
+                                  isCorrect 
+                                    ? 'bg-green-50 border-green-300' 
+                                    : 'bg-rose-50 border-rose-300'
+                                }`}
+                              >
+                                <div className="flex items-start gap-3 mb-3">
+                                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center font-bold text-sm ${
+                                    isCorrect ? 'bg-green-500 text-white' : 'bg-rose-500 text-white'
+                                  }`}>
+                                    {isCorrect ? '✓' : '✗'}
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="text-sm font-semibold text-gray-800 mb-2">
+                                      Q{index + 1}: {question.question}
+                                    </p>
+                                  </div>
+                                </div>
+                                
+                                <div className="ml-9 space-y-2 text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-gray-600">Your answer:</span>
+                                    <span className={`font-semibold ${
+                                      isCorrect ? 'text-green-700' : 'text-rose-700'
+                                    }`}>
+                                      {loverAnswerText}
+                                    </span>
+                                  </div>
+                                  
+                                  {!isCorrect && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-gray-600">{adminName}'s answer:</span>
+                                      <span className="font-semibold text-green-700">
+                                        {adminAnswerText}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                       {/* Action buttons */}
                       <div className="flex flex-col gap-4">
                         <button
