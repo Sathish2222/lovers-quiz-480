@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Heart, Sparkles, Share2, RotateCcw, Settings, Plus, Trash2, Edit2, Save, X, Calculator, CheckSquare, Square, Lock, Unlock, LogOut, Key, Link2, Copy, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
+import { Heart, Sparkles, Share2, RotateCcw, Copy, CheckCircle } from 'lucide-react';
 
-// Question bank with romantic couples questions
+// Question bank with 10 romantic couples questions
 const QUESTION_BANK = [
   {
     id: 1,
@@ -53,72 +53,42 @@ const QUESTION_BANK = [
     id: 10,
     question: "Your love language is:",
     options: ["Words", "Touch", "Gifts", "Time"]
-  },
-  {
-    id: 11,
-    question: "Best way to celebrate an anniversary:",
-    options: ["Romantic dinner out", "Recreate first date", "Weekend trip", "Cozy night in"]
-  },
-  {
-    id: 12,
-    question: "In tough times, you need:",
-    options: ["Emotional support", "Problem-solving help", "Space to process", "Physical comfort"]
-  },
-  {
-    id: 13,
-    question: "Dream vacation together:",
-    options: ["Paris, France", "Bali, Indonesia", "New York City", "Swiss Alps"]
-  },
-  {
-    id: 14,
-    question: "You feel closest when:",
-    options: ["Having deep talks", "Being physically close", "Laughing together", "Working as a team"]
-  },
-  {
-    id: 15,
-    question: "Your relationship motto:",
-    options: ["Love conquers all", "Communication is key", "Adventure together", "Trust always"]
   }
 ];
 
 // PUBLIC_INTERFACE
 /**
- * Encode admin options configuration to URL-safe base64 string
- * @param {Array} options - Array of option objects with id, label, and value
- * @returns {string} Base64-encoded configuration string
+ * Encode admin quiz data to URL-safe base64 string
+ * @param {Object} data - Object containing adminName and answers array
+ * @returns {string} Base64-encoded quiz data string
  */
-const encodeConfig = (options) => {
+const encodeQuizData = (data) => {
   try {
-    const config = { options, version: 1 };
-    const jsonString = JSON.stringify(config);
+    const jsonString = JSON.stringify(data);
     return btoa(encodeURIComponent(jsonString));
   } catch (e) {
-    console.error('Failed to encode config:', e);
+    console.error('Failed to encode quiz data:', e);
     return '';
   }
 };
 
 // PUBLIC_INTERFACE
 /**
- * Decode admin options configuration from URL-safe base64 string
- * @param {string} encodedConfig - Base64-encoded configuration string
- * @returns {Array|null} Array of option objects or null if decode fails
+ * Decode admin quiz data from URL-safe base64 string
+ * @param {string} encodedData - Base64-encoded quiz data string
+ * @returns {Object|null} Decoded quiz data or null if decode fails
  */
-const decodeConfig = (encodedConfig) => {
+const decodeQuizData = (encodedData) => {
   try {
-    const jsonString = decodeURIComponent(atob(encodedConfig));
-    const config = JSON.parse(jsonString);
-    if (config.version === 1 && Array.isArray(config.options)) {
-      return config.options;
-    }
-    return null;
+    const jsonString = decodeURIComponent(atob(encodedData));
+    return JSON.parse(jsonString);
   } catch (e) {
-    console.error('Failed to decode config:', e);
+    console.error('Failed to decode quiz data:', e);
     return null;
   }
 };
 
-// Compatibility labels based on score ranges
+// Compatibility labels based on score percentage
 const getCompatibilityLabel = (score) => {
   if (score >= 90) return { label: "Soulmates 💕", color: "text-pink-600", description: "You two are absolutely perfect for each other!" };
   if (score >= 80) return { label: "Perfect Match 💖", color: "text-rose-500", description: "Your connection is incredibly strong!" };
@@ -160,653 +130,51 @@ const Sparkle = ({ delay, top, left }) => (
 
 // PUBLIC_INTERFACE
 /**
- * User Calculator Component
- * Allows users to select admin-configured options and see the running total sum
- * Reads options from localStorage and provides multi-select functionality with reset/clear
+ * Admin Quiz Component
+ * Admin enters their name and answers 10 questions, then generates a shareable link
  */
-function UserCalculator() {
-  const [options, setOptions] = useState([]);
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [showImportSuccess, setShowImportSuccess] = useState(false);
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-
-  // Load options from localStorage on mount, or from URL if shared config present
-  useEffect(() => {
-    const configParam = searchParams.get('config');
-    
-    if (configParam) {
-      // Shared config in URL - decode and import
-      const decodedOptions = decodeConfig(configParam);
-      if (decodedOptions && decodedOptions.length > 0) {
-        setOptions(decodedOptions);
-        localStorage.setItem('adminOptions', JSON.stringify(decodedOptions));
-        setShowImportSuccess(true);
-        
-        // Clear the URL parameter after import
-        navigate('/calculator', { replace: true });
-        
-        // Hide success message after 3 seconds
-        setTimeout(() => setShowImportSuccess(false), 3000);
-      } else {
-        console.error('Failed to import shared configuration');
-      }
-    } else {
-      // Normal load from localStorage
-      const stored = localStorage.getItem('adminOptions');
-      if (stored) {
-        try {
-          setOptions(JSON.parse(stored));
-        } catch (e) {
-          console.error('Failed to parse stored options:', e);
-        }
-      }
-    }
-  }, [searchParams, navigate]);
-
-  // Toggle option selection
-  const toggleOption = (optionId) => {
-    setSelectedIds(prev => {
-      if (prev.includes(optionId)) {
-        return prev.filter(id => id !== optionId);
-      } else {
-        return [...prev, optionId];
-      }
-    });
-  };
-
-  // Calculate total sum
-  const calculateTotal = () => {
-    return options
-      .filter(opt => selectedIds.includes(opt.id))
-      .reduce((sum, opt) => sum + opt.value, 0);
-  };
-
-  // Reset/clear all selections
-  const handleReset = () => {
-    setSelectedIds([]);
-  };
-
-  const total = calculateTotal();
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-yellow-50 font-quicksand relative overflow-hidden">
-      {/* Floating hearts background */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <FloatingHeart delay={0} size="small" left={10} />
-        <FloatingHeart delay={1} size="medium" left={25} />
-        <FloatingHeart delay={2} size="large" left={45} />
-        <FloatingHeart delay={1.5} size="small" left={65} />
-        <FloatingHeart delay={2.5} size="medium" left={80} />
-        <FloatingHeart delay={0.5} size="small" left={90} />
-      </div>
-
-      {/* Main content */}
-      <div className="relative z-10 min-h-screen p-4 md:p-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Import Success Banner */}
-          {showImportSuccess && (
-            <div className="mb-6 bg-green-50 border-2 border-green-300 rounded-3xl p-4 shadow-lg animate-scale-in">
-              <div className="flex items-center justify-center gap-2">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-                <p className="text-green-700 font-semibold">
-                  ✨ Configuration imported successfully! You can now use the options.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Header */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-8 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <Calculator className="w-8 h-8 text-pink-500" />
-                <h1 className="text-3xl md:text-4xl font-playfair font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600">
-                  Options Calculator
-                </h1>
-              </div>
-              <button
-                onClick={() => navigate('/')}
-                className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-2 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-              >
-                Back to Quiz
-              </button>
-            </div>
-            <p className="text-gray-600">
-              Select options to see your total sum. All values are configured by the admin.
-            </p>
-          </div>
-
-          {/* Total Display */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-8 mb-6">
-            <div className="text-center">
-              <div className="text-gray-600 text-lg mb-2">Current Total</div>
-              <div className="text-6xl md:text-8xl font-playfair font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 mb-4">
-                {total.toFixed(2)}
-              </div>
-              <div className="text-gray-500 text-sm">
-                {selectedIds.length} option{selectedIds.length !== 1 ? 's' : ''} selected
-              </div>
-            </div>
-
-            {/* Reset Button */}
-            {selectedIds.length > 0 && (
-              <div className="flex justify-center mt-6">
-                <button
-                  onClick={handleReset}
-                  className="bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-semibold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
-                >
-                  <RotateCcw className="w-5 h-5" />
-                  Clear All Selections
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Options List */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-8">
-            <h2 className="text-2xl font-playfair font-bold text-gray-800 mb-4">
-              Available Options ({options.length})
-            </h2>
-            
-            {options.length === 0 ? (
-              <div className="text-center py-12">
-                <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 text-lg mb-4">No options available yet!</p>
-                <p className="text-gray-400 text-sm mb-6">
-                  An admin needs to add options first before you can use the calculator.
-                </p>
-                <button
-                  onClick={() => navigate('/admin')}
-                  className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 inline-flex items-center gap-2"
-                >
-                  <Settings className="w-5 h-5" />
-                  Go to Admin Panel
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {options.map((option) => {
-                  const isSelected = selectedIds.includes(option.id);
-                  return (
-                    <button
-                      key={option.id}
-                      onClick={() => toggleOption(option.id)}
-                      className={`w-full border-2 rounded-2xl p-4 transition-all duration-200 transform hover:scale-102 ${
-                        isSelected
-                          ? 'bg-gradient-to-r from-pink-100 to-rose-100 border-pink-400 shadow-lg'
-                          : 'bg-gradient-to-r from-pink-50 to-rose-50 border-pink-200 hover:border-pink-300 shadow-md hover:shadow-lg'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 flex-1">
-                          <div className={`flex-shrink-0 ${isSelected ? 'text-pink-600' : 'text-gray-400'}`}>
-                            {isSelected ? (
-                              <CheckSquare className="w-6 h-6" />
-                            ) : (
-                              <Square className="w-6 h-6" />
-                            )}
-                          </div>
-                          <div className="text-left flex-1">
-                            <div className={`text-lg font-semibold ${isSelected ? 'text-gray-900' : 'text-gray-800'}`}>
-                              {option.label}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              Value: <span className={`font-bold ${isSelected ? 'text-pink-600' : 'text-pink-500'}`}>
-                                {option.value}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        {isSelected && (
-                          <div className="flex-shrink-0 ml-3">
-                            <div className="bg-pink-500 text-white rounded-full px-3 py-1 text-sm font-bold">
-                              Selected
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Instructions */}
-          <div className="mt-6 bg-pink-50/80 backdrop-blur-sm rounded-2xl p-4 border-2 border-pink-200">
-            <p className="text-gray-700 text-sm">
-              <strong>💡 How it works:</strong> Click on any option to select or deselect it. 
-              The total sum updates automatically based on your selections. Use the "Clear All Selections" button to start over.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// PUBLIC_INTERFACE
-/**
- * Admin PIN Authentication Gate Component
- * Requires PIN entry before allowing access to admin controls
- * Persists authentication state in localStorage
- * Provides logout and change PIN functionality
- */
-function AdminPINGate({ children }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [pinInput, setPinInput] = useState('');
-  const [showChangePIN, setShowChangePIN] = useState(false);
-  const [newPIN, setNewPIN] = useState('');
-  const [confirmPIN, setConfirmPIN] = useState('');
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
-
-  // Check if user is authenticated on mount
-  useEffect(() => {
-    const authStatus = localStorage.getItem('adminAuthenticated');
-    const authTimestamp = localStorage.getItem('adminAuthTimestamp');
-    const currentTime = Date.now();
-    
-    // Session expires after 24 hours
-    if (authStatus === 'true' && authTimestamp && (currentTime - parseInt(authTimestamp)) < 24 * 60 * 60 * 1000) {
-      setIsAuthenticated(true);
-    } else {
-      // Clear expired session
-      localStorage.removeItem('adminAuthenticated');
-      localStorage.removeItem('adminAuthTimestamp');
-    }
-  }, []);
-
-  // Get stored PIN or default PIN
-  const getStoredPIN = () => {
-    return localStorage.getItem('adminPIN') || '1234'; // Default PIN
-  };
-
-  // Handle PIN verification
-  const handlePINSubmit = (e) => {
-    e.preventDefault();
-    const storedPIN = getStoredPIN();
-    
-    if (pinInput === storedPIN) {
-      setIsAuthenticated(true);
-      localStorage.setItem('adminAuthenticated', 'true');
-      localStorage.setItem('adminAuthTimestamp', Date.now().toString());
-      setPinInput('');
-      setError('');
-    } else {
-      setError('Incorrect PIN. Please try again.');
-      setPinInput('');
-    }
-  };
-
-  // Handle logout
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('adminAuthenticated');
-    localStorage.removeItem('adminAuthTimestamp');
-    setPinInput('');
-    setError('');
-  };
-
-  // Handle change PIN
-  const handleChangePIN = (e) => {
-    e.preventDefault();
-    
-    if (newPIN.length < 4) {
-      setError('PIN must be at least 4 characters');
-      return;
-    }
-    
-    if (newPIN !== confirmPIN) {
-      setError('PINs do not match');
-      return;
-    }
-    
-    localStorage.setItem('adminPIN', newPIN);
-    setNewPIN('');
-    setConfirmPIN('');
-    setShowChangePIN(false);
-    setError('');
-    alert('PIN changed successfully!');
-  };
-
-  // If not authenticated, show PIN entry screen
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-yellow-50 font-quicksand relative overflow-hidden">
-        {/* Floating hearts background */}
-        <div className="fixed inset-0 pointer-events-none overflow-hidden">
-          <FloatingHeart delay={0} size="small" left={10} />
-          <FloatingHeart delay={1} size="medium" left={25} />
-          <FloatingHeart delay={2} size="large" left={45} />
-          <FloatingHeart delay={1.5} size="small" left={65} />
-          <FloatingHeart delay={2.5} size="medium" left={80} />
-          <FloatingHeart delay={0.5} size="small" left={90} />
-        </div>
-
-        {/* PIN Entry Form */}
-        <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-          <div className="max-w-md w-full animate-fade-in">
-            <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-12">
-              {/* Header */}
-              <div className="text-center mb-8">
-                <div className="flex justify-center mb-4">
-                  <div className="bg-pink-100 rounded-full p-4">
-                    <Lock className="text-pink-500 w-12 h-12" />
-                  </div>
-                </div>
-                <h1 className="text-3xl md:text-4xl font-playfair font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 mb-2">
-                  Admin Access
-                </h1>
-                <p className="text-gray-600">
-                  Enter your PIN to access the admin panel
-                </p>
-              </div>
-
-              {/* PIN Input Form */}
-              <form onSubmit={handlePINSubmit} className="space-y-6">
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2 text-sm">
-                    Enter PIN
-                  </label>
-                  <input
-                    type="password"
-                    value={pinInput}
-                    onChange={(e) => {
-                      setPinInput(e.target.value);
-                      setError('');
-                    }}
-                    placeholder="Enter your PIN..."
-                    className="w-full px-6 py-4 rounded-full border-2 border-pink-200 focus:border-pink-400 focus:outline-none transition-colors text-gray-800 placeholder-gray-400 text-center text-2xl tracking-widest"
-                    autoFocus
-                  />
-                </div>
-
-                {error && (
-                  <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 text-center">
-                    <p className="text-red-600 font-medium">{error}</p>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-4 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg flex items-center justify-center gap-2"
-                >
-                  <Unlock className="w-5 h-5" />
-                  Unlock Admin Panel
-                </button>
-              </form>
-
-              {/* Back button */}
-              <div className="mt-6">
-                <button
-                  onClick={() => navigate('/')}
-                  className="w-full bg-white border-2 border-pink-300 hover:border-pink-400 text-pink-600 font-semibold py-3 px-6 rounded-full shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
-                >
-                  Back to Quiz
-                </button>
-              </div>
-
-              {/* Info */}
-              <div className="mt-6 bg-pink-50/80 backdrop-blur-sm rounded-2xl p-4 border-2 border-pink-200">
-                <p className="text-gray-700 text-sm text-center">
-                  <strong>🔒 Default PIN:</strong> 1234
-                </p>
-                <p className="text-gray-600 text-xs text-center mt-2">
-                  You can change your PIN after logging in
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // If authenticated, show admin controls with logout and change PIN options
-  return (
-    <div className="relative">
-      {/* Admin Header Bar with Logout and Change PIN */}
-      <div className="bg-gradient-to-r from-pink-500 to-rose-500 text-white py-3 px-4 shadow-lg">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Unlock className="w-5 h-5" />
-            <span className="font-semibold">Admin Mode Active</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowChangePIN(!showChangePIN)}
-              className="bg-white/20 hover:bg-white/30 backdrop-blur-sm py-2 px-4 rounded-full font-medium flex items-center gap-2 transition-all"
-              title="Change PIN"
-            >
-              <Key className="w-4 h-4" />
-              Change PIN
-            </button>
-            <button
-              onClick={handleLogout}
-              className="bg-white/20 hover:bg-white/30 backdrop-blur-sm py-2 px-4 rounded-full font-medium flex items-center gap-2 transition-all"
-              title="Logout"
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Change PIN Modal */}
-      {showChangePIN && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full animate-scale-in">
-            <div className="text-center mb-6">
-              <div className="inline-block bg-pink-100 rounded-full p-3 mb-3">
-                <Key className="w-8 h-8 text-pink-500" />
-              </div>
-              <h2 className="text-2xl font-playfair font-bold text-gray-800 mb-2">
-                Change PIN
-              </h2>
-              <p className="text-gray-600 text-sm">
-                Enter a new PIN to secure your admin panel
-              </p>
-            </div>
-
-            <form onSubmit={handleChangePIN} className="space-y-4">
-              <div>
-                <label className="block text-gray-700 font-medium mb-2 text-sm">
-                  New PIN
-                </label>
-                <input
-                  type="password"
-                  value={newPIN}
-                  onChange={(e) => {
-                    setNewPIN(e.target.value);
-                    setError('');
-                  }}
-                  placeholder="Enter new PIN..."
-                  className="w-full px-4 py-3 rounded-full border-2 border-pink-200 focus:border-pink-400 focus:outline-none transition-colors text-gray-800 placeholder-gray-400"
-                  autoFocus
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-700 font-medium mb-2 text-sm">
-                  Confirm New PIN
-                </label>
-                <input
-                  type="password"
-                  value={confirmPIN}
-                  onChange={(e) => {
-                    setConfirmPIN(e.target.value);
-                    setError('');
-                  }}
-                  placeholder="Confirm new PIN..."
-                  className="w-full px-4 py-3 rounded-full border-2 border-pink-200 focus:border-pink-400 focus:outline-none transition-colors text-gray-800 placeholder-gray-400"
-                />
-              </div>
-
-              {error && (
-                <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-3 text-center">
-                  <p className="text-red-600 text-sm font-medium">{error}</p>
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowChangePIN(false);
-                    setNewPIN('');
-                    setConfirmPIN('');
-                    setError('');
-                  }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-6 rounded-full transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:shadow-xl transition-all"
-                >
-                  Save PIN
-                </button>
-              </div>
-            </form>
-
-            <div className="mt-4 bg-pink-50 rounded-2xl p-3 border border-pink-200">
-              <p className="text-gray-700 text-xs text-center">
-                💡 Make sure to remember your new PIN. There is no recovery option.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Render protected admin content */}
-      {children}
-    </div>
-  );
-}
-
-// PUBLIC_INTERFACE
-/**
- * Admin Panel Component
- * Allows admin to create and manage custom options with labels and numeric values
- * Data is persisted in localStorage
- */
-function AdminPanel() {
-  const [options, setOptions] = useState([]);
-  const [editingId, setEditingId] = useState(null);
-  const [editLabel, setEditLabel] = useState('');
-  const [editValue, setEditValue] = useState('');
-  const [newLabel, setNewLabel] = useState('');
-  const [newValue, setNewValue] = useState('');
-  const [showShareModal, setShowShareModal] = useState(false);
+function AdminQuiz() {
+  const [screen, setScreen] = useState('welcome'); // 'welcome', 'quiz', 'share'
+  const [adminName, setAdminName] = useState('');
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState([]);
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
-  const navigate = useNavigate();
 
-  // Load options from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem('adminOptions');
-    if (stored) {
-      try {
-        setOptions(JSON.parse(stored));
-      } catch (e) {
-        console.error('Failed to parse stored options:', e);
-      }
+  // Handle start quiz
+  const handleStartQuiz = () => {
+    if (adminName.trim()) {
+      setScreen('quiz');
+      setCurrentQuestionIndex(0);
+      setAnswers([]);
     }
-  }, []);
+  };
 
-  // Save options to localStorage whenever they change
-  useEffect(() => {
-    if (options.length > 0) {
-      localStorage.setItem('adminOptions', JSON.stringify(options));
+  // Handle answer selection
+  const handleAnswerSelect = (answerIndex) => {
+    const newAnswers = [...answers, answerIndex];
+    setAnswers(newAnswers);
+
+    // Move to next question or finish
+    if (currentQuestionIndex < QUESTION_BANK.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+    } else {
+      // Generate share link
+      generateShareLink(newAnswers);
+      setScreen('share');
     }
-  }, [options]);
+  };
 
-  // Add new option
-  const handleAddOption = () => {
-    if (!newLabel.trim() || !newValue.trim()) {
-      alert('Please enter both label and value');
-      return;
-    }
-
-    const numericValue = parseFloat(newValue);
-    if (isNaN(numericValue)) {
-      alert('Value must be a number');
-      return;
-    }
-
-    const newOption = {
-      id: Date.now(),
-      label: newLabel.trim(),
-      value: numericValue
+  // Generate shareable link with encoded admin data
+  const generateShareLink = (finalAnswers) => {
+    const quizData = {
+      adminName: adminName.trim(),
+      answers: finalAnswers
     };
-
-    setOptions(prev => [...prev, newOption]);
-    setNewLabel('');
-    setNewValue('');
-  };
-
-  // Start editing an option
-  const handleEditStart = (option) => {
-    setEditingId(option.id);
-    setEditLabel(option.label);
-    setEditValue(option.value.toString());
-  };
-
-  // Save edited option
-  const handleEditSave = () => {
-    if (!editLabel.trim() || !editValue.trim()) {
-      alert('Please enter both label and value');
-      return;
-    }
-
-    const numericValue = parseFloat(editValue);
-    if (isNaN(numericValue)) {
-      alert('Value must be a number');
-      return;
-    }
-
-    setOptions(prev => prev.map(opt => 
-      opt.id === editingId 
-        ? { ...opt, label: editLabel.trim(), value: numericValue }
-        : opt
-    ));
-    setEditingId(null);
-    setEditLabel('');
-    setEditValue('');
-  };
-
-  // Cancel editing
-  const handleEditCancel = () => {
-    setEditingId(null);
-    setEditLabel('');
-    setEditValue('');
-  };
-
-  // Delete option
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this option?')) {
-      setOptions(prev => prev.filter(opt => opt.id !== id));
-    }
-  };
-
-  // Generate shareable link
-  const handleGenerateShareLink = () => {
-    if (options.length === 0) {
-      alert('Please add at least one option before sharing');
-      return;
-    }
-
-    const encodedConfig = encodeConfig(options);
+    const encodedData = encodeQuizData(quizData);
     const baseUrl = window.location.origin;
-    const fullUrl = `${baseUrl}/calculator?config=${encodedConfig}`;
-    
+    const fullUrl = `${baseUrl}/lover?data=${encodedData}`;
     setShareUrl(fullUrl);
-    setShowShareModal(true);
-    setCopied(false);
   };
 
   // Copy share link to clipboard
@@ -821,6 +189,18 @@ function AdminPanel() {
     }
   };
 
+  // Reset and start over
+  const handleStartOver = () => {
+    setScreen('welcome');
+    setAdminName('');
+    setCurrentQuestionIndex(0);
+    setAnswers([]);
+    setShareUrl('');
+    setCopied(false);
+  };
+
+  const progress = QUESTION_BANK.length > 0 ? ((currentQuestionIndex + 1) / QUESTION_BANK.length) * 100 : 0;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-yellow-50 font-quicksand relative overflow-hidden">
       {/* Floating hearts background */}
@@ -834,424 +214,6 @@ function AdminPanel() {
       </div>
 
       {/* Main content */}
-      <div className="relative z-10 min-h-screen p-4 md:p-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-8 mb-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-              <div className="flex items-center gap-3">
-                <Settings className="w-8 h-8 text-pink-500" />
-                <h1 className="text-3xl md:text-4xl font-playfair font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600">
-                  Admin Panel
-                </h1>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleGenerateShareLink}
-                  className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-semibold py-2 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
-                  title="Share Configuration"
-                >
-                  <Link2 className="w-5 h-5" />
-                  Share Config
-                </button>
-                <button
-                  onClick={() => navigate('/')}
-                  className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-2 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-                >
-                  Back to Quiz
-                </button>
-              </div>
-            </div>
-            <p className="text-gray-600">
-              Manage custom options for your quiz. Each option has a label and a numeric value.
-            </p>
-          </div>
-
-          {/* Add New Option Form */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-8 mb-6">
-            <h2 className="text-2xl font-playfair font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <Plus className="w-6 h-6 text-pink-500" />
-              Add New Option
-            </h2>
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <label className="block text-gray-700 font-medium mb-2 text-sm">
-                  Option Label
-                </label>
-                <input
-                  type="text"
-                  value={newLabel}
-                  onChange={(e) => setNewLabel(e.target.value)}
-                  placeholder="e.g., Romantic Dinner"
-                  className="w-full px-4 py-3 rounded-full border-2 border-pink-200 focus:border-pink-400 focus:outline-none transition-colors text-gray-800 placeholder-gray-400"
-                  onKeyPress={(e) => e.key === 'Enter' && document.getElementById('new-value-input').focus()}
-                />
-              </div>
-              <div className="flex-1">
-                <label className="block text-gray-700 font-medium mb-2 text-sm">
-                  Numeric Value
-                </label>
-                <input
-                  id="new-value-input"
-                  type="number"
-                  step="0.01"
-                  value={newValue}
-                  onChange={(e) => setNewValue(e.target.value)}
-                  placeholder="e.g., 85"
-                  className="w-full px-4 py-3 rounded-full border-2 border-pink-200 focus:border-pink-400 focus:outline-none transition-colors text-gray-800 placeholder-gray-400"
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddOption()}
-                />
-              </div>
-              <div className="flex items-end">
-                <button
-                  onClick={handleAddOption}
-                  className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
-                >
-                  <Plus className="w-5 h-5" />
-                  Add
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Options List */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-8">
-            <h2 className="text-2xl font-playfair font-bold text-gray-800 mb-4">
-              Current Options ({options.length})
-            </h2>
-            
-            {options.length === 0 ? (
-              <div className="text-center py-12">
-                <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 text-lg">No options yet. Add your first option above!</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {options.map((option) => (
-                  <div
-                    key={option.id}
-                    className="bg-gradient-to-r from-pink-50 to-rose-50 border-2 border-pink-200 rounded-2xl p-4"
-                  >
-                    {editingId === option.id ? (
-                      // Edit mode
-                      <div className="flex flex-col md:flex-row gap-3">
-                        <div className="flex-1">
-                          <input
-                            type="text"
-                            value={editLabel}
-                            onChange={(e) => setEditLabel(e.target.value)}
-                            className="w-full px-4 py-2 rounded-full border-2 border-pink-300 focus:border-pink-500 focus:outline-none transition-colors text-gray-800"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            className="w-full px-4 py-2 rounded-full border-2 border-pink-300 focus:border-pink-500 focus:outline-none transition-colors text-gray-800"
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={handleEditSave}
-                            className="bg-green-500 hover:bg-green-600 text-white p-2 rounded-full shadow-md hover:shadow-lg transition-all"
-                            title="Save"
-                          >
-                            <Save className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={handleEditCancel}
-                            className="bg-gray-500 hover:bg-gray-600 text-white p-2 rounded-full shadow-md hover:shadow-lg transition-all"
-                            title="Cancel"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      // View mode
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="text-lg font-semibold text-gray-800">
-                            {option.label}
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            Value: <span className="font-bold text-pink-600">{option.value}</span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEditStart(option)}
-                            className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full shadow-md hover:shadow-lg transition-all"
-                            title="Edit"
-                          >
-                            <Edit2 className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(option.id)}
-                            className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-md hover:shadow-lg transition-all"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Instructions */}
-          <div className="mt-6 bg-pink-50/80 backdrop-blur-sm rounded-2xl p-4 border-2 border-pink-200">
-            <p className="text-gray-700 text-sm">
-              <strong>💡 Tip:</strong> Options are stored locally in your browser and will persist across page refreshes. 
-              Users can select these options in the calculator to see the total sum. Use "Share Config" to create a link that others can use to import your configuration on any device.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Share Config Modal */}
-      {showShareModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full animate-scale-in">
-            <div className="text-center mb-6">
-              <div className="inline-block bg-blue-100 rounded-full p-3 mb-3">
-                <Link2 className="w-8 h-8 text-blue-500" />
-              </div>
-              <h2 className="text-2xl font-playfair font-bold text-gray-800 mb-2">
-                Share Your Configuration
-              </h2>
-              <p className="text-gray-600 text-sm">
-                Copy this link to share your admin options with others. They can open it on any device to import the configuration.
-              </p>
-            </div>
-
-            {/* Share URL Display */}
-            <div className="mb-6">
-              <div className="bg-gray-50 border-2 border-gray-200 rounded-2xl p-4 mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 overflow-hidden">
-                    <p className="text-sm text-gray-600 mb-1 font-medium">Shareable Link:</p>
-                    <p className="text-gray-800 text-sm font-mono break-all">
-                      {shareUrl}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Copy Button */}
-              <button
-                onClick={handleCopyLink}
-                className={`w-full font-semibold py-3 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2 ${
-                  copied
-                    ? 'bg-green-500 hover:bg-green-600 text-white'
-                    : 'bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white'
-                }`}
-              >
-                {copied ? (
-                  <>
-                    <CheckCircle className="w-5 h-5" />
-                    Copied to Clipboard!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-5 h-5" />
-                    Copy Link to Clipboard
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Info Box */}
-            <div className="mb-6 bg-blue-50 rounded-2xl p-4 border border-blue-200">
-              <p className="text-gray-700 text-sm mb-2">
-                <strong>📋 How it works:</strong>
-              </p>
-              <ul className="text-gray-600 text-xs space-y-1 list-disc list-inside">
-                <li>The link contains your current options configuration encoded in the URL</li>
-                <li>Anyone opening this link will automatically import your options into their browser</li>
-                <li>The configuration will be saved to their localStorage and they'll be redirected to the calculator</li>
-                <li>Perfect for sharing custom setups across devices or with other users</li>
-              </ul>
-            </div>
-
-            {/* Close Button */}
-            <button
-              onClick={() => setShowShareModal(false)}
-              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-6 rounded-full transition-all"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// PUBLIC_INTERFACE
-/**
- * Quiz Game Component
- * The main quiz flow with welcome screen, questions, and results
- */
-function QuizGame() {
-  // Game state
-  const [screen, setScreen] = useState('welcome'); // 'welcome', 'quiz', 'results'
-  const [playerName, setPlayerName] = useState('');
-  const [partnerName, setPartnerName] = useState('');
-  const [questions, setQuestions] = useState([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState([]);
-  const [startTime, setStartTime] = useState(null);
-  const [questionStartTime, setQuestionStartTime] = useState(null);
-  const [score, setScore] = useState(0);
-  const [revealPhase, setRevealPhase] = useState(0); // 0: calculating, 1: show score, 2: show details
-  const navigate = useNavigate();
-
-  // Initialize quiz with randomized questions
-  const initializeQuiz = useCallback(() => {
-    const shuffled = [...QUESTION_BANK].sort(() => Math.random() - 0.5);
-    const selected = shuffled.slice(0, 10);
-    setQuestions(selected);
-    setCurrentQuestionIndex(0);
-    setAnswers([]);
-    setStartTime(Date.now());
-    setQuestionStartTime(Date.now());
-  }, []);
-
-  // Start the game
-  const handleStartGame = () => {
-    if (playerName.trim() && partnerName.trim()) {
-      initializeQuiz();
-      setScreen('quiz');
-    }
-  };
-
-  // Handle answer selection
-  const handleAnswerSelect = (answerIndex) => {
-    const timeSpent = Date.now() - questionStartTime;
-    
-    // Store answer with timing information
-    setAnswers(prev => [...prev, { 
-      questionId: questions[currentQuestionIndex].id,
-      answer: answerIndex,
-      timeSpent 
-    }]);
-
-    // Move to next question or finish
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
-      setQuestionStartTime(Date.now());
-    } else {
-      // Calculate final score
-      calculateScore([...answers, { 
-        questionId: questions[currentQuestionIndex].id,
-        answer: answerIndex,
-        timeSpent 
-      }]);
-      setScreen('results');
-    }
-  };
-
-  // Calculate score based on randomization and speed
-  const calculateScore = (allAnswers) => {
-    // Base random score (40-70)
-    let baseScore = Math.floor(Math.random() * 31) + 40;
-    
-    // Speed bonus: faster answers get bonus points (up to +30)
-    const avgTime = allAnswers.reduce((sum, a) => sum + a.timeSpent, 0) / allAnswers.length;
-    const speedBonus = Math.max(0, Math.min(30, Math.floor((10000 - avgTime) / 300)));
-    
-    // Total score (capped at 100)
-    const finalScore = Math.min(100, baseScore + speedBonus);
-    setScore(finalScore);
-  };
-
-  // Reveal score with timed phases
-  useEffect(() => {
-    if (screen === 'results') {
-      // Phase 0: Calculating (2 seconds)
-      const timer1 = setTimeout(() => setRevealPhase(1), 2000);
-      // Phase 1: Show score (1.5 seconds)
-      const timer2 = setTimeout(() => setRevealPhase(2), 3500);
-      
-      return () => {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-      };
-    }
-  }, [screen]);
-
-  // Play again functionality
-  const handlePlayAgain = () => {
-    setScreen('welcome');
-    setPlayerName('');
-    setPartnerName('');
-    setAnswers([]);
-    setScore(0);
-    setRevealPhase(0);
-  };
-
-  // Share functionality
-  const handleShare = () => {
-    const compatibility = getCompatibilityLabel(score);
-    const shareText = `${playerName} and ${partnerName} scored ${score}% on the Lover Game! We're ${compatibility.label}! 💕`;
-    
-    if (navigator.share) {
-      navigator.share({
-        title: 'Lover Game Results',
-        text: shareText,
-      }).catch(() => {
-        // Fallback: copy to clipboard
-        navigator.clipboard.writeText(shareText);
-        alert('Results copied to clipboard!');
-      });
-    } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(shareText);
-      alert('Results copied to clipboard!');
-    }
-  };
-
-  // Calculate progress percentage
-  const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
-  const compatibility = getCompatibilityLabel(score);
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-yellow-50 font-quicksand relative overflow-hidden">
-      {/* Floating hearts background animation */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <FloatingHeart delay={0} size="small" left={10} />
-        <FloatingHeart delay={1} size="medium" left={25} />
-        <FloatingHeart delay={2} size="large" left={45} />
-        <FloatingHeart delay={1.5} size="small" left={65} />
-        <FloatingHeart delay={2.5} size="medium" left={80} />
-        <FloatingHeart delay={0.5} size="small" left={90} />
-      </div>
-
-      {/* Navigation buttons */}
-      <div className="absolute top-4 right-4 z-20 flex gap-2">
-        <button
-          onClick={() => navigate('/calculator')}
-          className="bg-white/80 backdrop-blur-sm hover:bg-white text-pink-600 p-3 rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200"
-          title="Calculator"
-        >
-          <Calculator className="w-6 h-6" />
-        </button>
-        <button
-          onClick={() => navigate('/admin')}
-          className="bg-white/80 backdrop-blur-sm hover:bg-white text-pink-600 p-3 rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200"
-          title="Admin Panel"
-        >
-          <Settings className="w-6 h-6" />
-        </button>
-      </div>
-
-      {/* Main content container */}
       <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
         
         {/* WELCOME SCREEN */}
@@ -1267,66 +229,62 @@ function QuizGame() {
                   Lover Game
                 </h1>
                 <p className="text-gray-600 text-lg">
-                  Discover your romantic compatibility! 💕
+                  Test how well your lover knows you! 💕
                 </p>
               </div>
 
-              {/* Name inputs */}
+              {/* Admin name input */}
               <div className="space-y-6 mb-8">
                 <div>
                   <label className="block text-gray-700 font-medium mb-2 text-sm">
-                    Your Name
+                    Enter Your Name
                   </label>
                   <input
                     type="text"
-                    value={playerName}
-                    onChange={(e) => setPlayerName(e.target.value)}
-                    placeholder="Enter your name..."
+                    value={adminName}
+                    onChange={(e) => setAdminName(e.target.value)}
+                    placeholder="e.g., Sathish"
                     className="w-full px-6 py-4 rounded-full border-2 border-pink-200 focus:border-pink-400 focus:outline-none transition-colors text-gray-800 placeholder-gray-400"
-                    onKeyPress={(e) => e.key === 'Enter' && document.getElementById('partner-input').focus()}
+                    onKeyPress={(e) => e.key === 'Enter' && handleStartQuiz()}
+                    autoFocus
                   />
                 </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2 text-sm">
-                    Partner's Name
-                  </label>
-                  <input
-                    id="partner-input"
-                    type="text"
-                    value={partnerName}
-                    onChange={(e) => setPartnerName(e.target.value)}
-                    placeholder="Enter partner's name..."
-                    className="w-full px-6 py-4 rounded-full border-2 border-pink-200 focus:border-pink-400 focus:outline-none transition-colors text-gray-800 placeholder-gray-400"
-                    onKeyPress={(e) => e.key === 'Enter' && handleStartGame()}
-                  />
-                </div>
+              </div>
+
+              {/* Instructions */}
+              <div className="mb-8 bg-pink-50 rounded-2xl p-4 border-2 border-pink-200">
+                <p className="text-gray-700 text-sm">
+                  <strong>📝 How it works:</strong>
+                </p>
+                <ol className="text-gray-600 text-sm mt-2 space-y-1 list-decimal list-inside">
+                  <li>You'll answer 10 questions about yourself</li>
+                  <li>Get a shareable link to send to your lover</li>
+                  <li>They answer the same questions about YOU</li>
+                  <li>See how well they know you! 💖</li>
+                </ol>
               </div>
 
               {/* Start button */}
               <button
-                onClick={handleStartGame}
-                disabled={!playerName.trim() || !partnerName.trim()}
+                onClick={handleStartQuiz}
+                disabled={!adminName.trim()}
                 className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 disabled:from-gray-300 disabled:to-gray-400 text-white font-semibold py-4 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 disabled:scale-100 transition-all duration-200 text-lg flex items-center justify-center gap-2"
               >
                 <Sparkles className="w-5 h-5" />
-                Start the Journey
+                Start Answering Questions
               </button>
-
-              <p className="text-center text-gray-500 text-sm mt-6">
-                10 questions • 2 minutes • Pure romance ✨
-              </p>
             </div>
           </div>
         )}
 
         {/* QUIZ SCREEN */}
-        {screen === 'quiz' && questions.length > 0 && (
+        {screen === 'quiz' && (
           <div className="max-w-2xl w-full animate-slide-up">
             {/* Progress bar */}
             <div className="mb-6">
               <div className="flex justify-between items-center mb-2 px-2">
                 <span className="text-sm font-medium text-gray-700">
-                  Question {currentQuestionIndex + 1} of {questions.length}
+                  Question {currentQuestionIndex + 1} of {QUESTION_BANK.length}
                 </span>
                 <span className="text-sm font-medium text-pink-600">
                   {Math.round(progress)}%
@@ -1347,16 +305,16 @@ function QuizGame() {
                   <Heart className="w-8 h-8 text-pink-500 fill-pink-500" />
                 </div>
                 <h2 className="text-2xl md:text-3xl font-playfair font-bold text-gray-800 mb-2">
-                  {questions[currentQuestionIndex].question}
+                  {QUESTION_BANK[currentQuestionIndex].question}
                 </h2>
                 <p className="text-gray-500 text-sm">
-                  Choose the answer that resonates with your heart 💖
+                  Choose your honest answer, {adminName} 💖
                 </p>
               </div>
 
               {/* Answer options */}
               <div className="space-y-4">
-                {questions[currentQuestionIndex].options.map((option, index) => (
+                {QUESTION_BANK[currentQuestionIndex].options.map((option, index) => (
                   <button
                     key={index}
                     onClick={() => handleAnswerSelect(index)}
@@ -1372,12 +330,325 @@ function QuizGame() {
                 ))}
               </div>
             </div>
+          </div>
+        )}
 
-            {/* Names display */}
-            <div className="text-center mt-6">
-              <p className="text-gray-700 font-medium">
-                {playerName} 💕 {partnerName}
-              </p>
+        {/* SHARE LINK SCREEN */}
+        {screen === 'share' && (
+          <div className="max-w-2xl w-full animate-fade-in">
+            <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-12">
+              <div className="text-center mb-8">
+                <div className="flex justify-center mb-4">
+                  <Share2 className="text-pink-500 w-16 h-16" />
+                </div>
+                <h1 className="text-4xl md:text-5xl font-playfair font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 mb-4">
+                  Your Quiz is Ready!
+                </h1>
+                <p className="text-gray-600 text-lg">
+                  Share this link with your lover to see how well they know you! 💕
+                </p>
+              </div>
+
+              {/* Share URL Display */}
+              <div className="mb-8">
+                <div className="bg-gray-50 border-2 border-gray-200 rounded-2xl p-4 mb-4">
+                  <p className="text-sm text-gray-600 mb-2 font-medium">Shareable Link:</p>
+                  <p className="text-gray-800 text-sm font-mono break-all">
+                    {shareUrl}
+                  </p>
+                </div>
+
+                {/* Copy Button */}
+                <button
+                  onClick={handleCopyLink}
+                  className={`w-full font-semibold py-4 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2 ${
+                    copied
+                      ? 'bg-green-500 hover:bg-green-600 text-white'
+                      : 'bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white'
+                  }`}
+                >
+                  {copied ? (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      Copied to Clipboard!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-5 h-5" />
+                      Copy Link to Share
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Instructions */}
+              <div className="mb-8 bg-pink-50 rounded-2xl p-4 border-2 border-pink-200">
+                <p className="text-gray-700 text-sm">
+                  <strong>💡 Next Steps:</strong>
+                </p>
+                <ul className="text-gray-600 text-sm mt-2 space-y-1 list-disc list-inside">
+                  <li>Copy the link above</li>
+                  <li>Send it to your lover via text, email, or social media</li>
+                  <li>They'll enter their name and answer questions about YOU</li>
+                  <li>They'll see their compatibility score instantly!</li>
+                </ul>
+              </div>
+
+              {/* Start Over Button */}
+              <button
+                onClick={handleStartOver}
+                className="w-full bg-white border-2 border-pink-500 text-pink-600 hover:bg-pink-50 font-semibold py-3 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                <RotateCcw className="w-5 h-5" />
+                Start Over with New Quiz
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// PUBLIC_INTERFACE
+/**
+ * Lover Quiz Component
+ * Lover opens the shared link, enters their name, and answers questions about the admin
+ */
+function LoverQuiz() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [screen, setScreen] = useState('loading'); // 'loading', 'welcome', 'quiz', 'results'
+  const [adminName, setAdminName] = useState('');
+  const [adminAnswers, setAdminAnswers] = useState([]);
+  const [loverName, setLoverName] = useState('');
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [loverAnswers, setLoverAnswers] = useState([]);
+  const [score, setScore] = useState(0);
+  const [revealPhase, setRevealPhase] = useState(0); // 0: calculating, 1: show score, 2: show details
+
+  // Load admin quiz data from URL on mount
+  useEffect(() => {
+    const dataParam = searchParams.get('data');
+    
+    if (dataParam) {
+      const decodedData = decodeQuizData(dataParam);
+      if (decodedData && decodedData.adminName && decodedData.answers) {
+        setAdminName(decodedData.adminName);
+        setAdminAnswers(decodedData.answers);
+        setScreen('welcome');
+      } else {
+        alert('Invalid quiz link. Please check the link and try again.');
+        navigate('/');
+      }
+    } else {
+      alert('No quiz data found. Please use a valid quiz link.');
+      navigate('/');
+    }
+  }, [searchParams, navigate]);
+
+  // Handle start quiz
+  const handleStartQuiz = () => {
+    if (loverName.trim()) {
+      setScreen('quiz');
+      setCurrentQuestionIndex(0);
+      setLoverAnswers([]);
+    }
+  };
+
+  // Handle answer selection
+  const handleAnswerSelect = (answerIndex) => {
+    const newAnswers = [...loverAnswers, answerIndex];
+    setLoverAnswers(newAnswers);
+
+    // Move to next question or finish
+    if (currentQuestionIndex < QUESTION_BANK.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+    } else {
+      // Calculate score
+      calculateScore(newAnswers);
+      setScreen('results');
+    }
+  };
+
+  // Calculate score by comparing lover's answers with admin's answers
+  const calculateScore = (finalLoverAnswers) => {
+    let matches = 0;
+    for (let i = 0; i < adminAnswers.length; i++) {
+      if (finalLoverAnswers[i] === adminAnswers[i]) {
+        matches++;
+      }
+    }
+    const percentage = Math.round((matches / adminAnswers.length) * 100);
+    setScore(percentage);
+  };
+
+  // Reveal score with timed phases
+  useEffect(() => {
+    if (screen === 'results') {
+      // Phase 0: Calculating (2 seconds)
+      const timer1 = setTimeout(() => setRevealPhase(1), 2000);
+      // Phase 1: Show score (1.5 seconds)
+      const timer2 = setTimeout(() => setRevealPhase(2), 3500);
+      
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
+    }
+  }, [screen]);
+
+  // Play again - go back to home
+  const handlePlayAgain = () => {
+    navigate('/');
+  };
+
+  const progress = QUESTION_BANK.length > 0 ? ((currentQuestionIndex + 1) / QUESTION_BANK.length) * 100 : 0;
+  const compatibility = getCompatibilityLabel(score);
+
+  if (screen === 'loading') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-yellow-50 font-quicksand flex items-center justify-center">
+        <div className="text-center">
+          <Sparkles className="w-16 h-16 text-pink-500 mx-auto mb-4 animate-spin" />
+          <p className="text-gray-600">Loading quiz...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-yellow-50 font-quicksand relative overflow-hidden">
+      {/* Floating hearts background */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <FloatingHeart delay={0} size="small" left={10} />
+        <FloatingHeart delay={1} size="medium" left={25} />
+        <FloatingHeart delay={2} size="large" left={45} />
+        <FloatingHeart delay={1.5} size="small" left={65} />
+        <FloatingHeart delay={2.5} size="medium" left={80} />
+        <FloatingHeart delay={0.5} size="small" left={90} />
+      </div>
+
+      {/* Main content */}
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+        
+        {/* WELCOME SCREEN */}
+        {screen === 'welcome' && (
+          <div className="max-w-lg w-full animate-fade-in">
+            <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-12">
+              {/* Header */}
+              <div className="text-center mb-8">
+                <div className="flex justify-center mb-4">
+                  <Heart className="text-pink-500 w-16 h-16 fill-pink-500" />
+                </div>
+                <h1 className="text-5xl md:text-6xl font-playfair font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 mb-4">
+                  Lover Game
+                </h1>
+                <p className="text-gray-600 text-lg mb-2">
+                  {adminName} wants to know how well you know them! 💕
+                </p>
+                <p className="text-gray-500 text-sm">
+                  Answer 10 questions about {adminName} and see your compatibility score!
+                </p>
+              </div>
+
+              {/* Lover name input */}
+              <div className="space-y-6 mb-8">
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2 text-sm">
+                    Enter Your Name
+                  </label>
+                  <input
+                    type="text"
+                    value={loverName}
+                    onChange={(e) => setLoverName(e.target.value)}
+                    placeholder="Enter your name..."
+                    className="w-full px-6 py-4 rounded-full border-2 border-pink-200 focus:border-pink-400 focus:outline-none transition-colors text-gray-800 placeholder-gray-400"
+                    onKeyPress={(e) => e.key === 'Enter' && handleStartQuiz()}
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              {/* Instructions */}
+              <div className="mb-8 bg-pink-50 rounded-2xl p-4 border-2 border-pink-200">
+                <p className="text-gray-700 text-sm">
+                  <strong>💖 Instructions:</strong>
+                </p>
+                <p className="text-gray-600 text-sm mt-2">
+                  You'll answer the same 10 questions that {adminName} answered, 
+                  but from their perspective. Try to match their answers to get a high score!
+                </p>
+              </div>
+
+              {/* Start button */}
+              <button
+                onClick={handleStartQuiz}
+                disabled={!loverName.trim()}
+                className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 disabled:from-gray-300 disabled:to-gray-400 text-white font-semibold py-4 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 disabled:scale-100 transition-all duration-200 text-lg flex items-center justify-center gap-2"
+              >
+                <Sparkles className="w-5 h-5" />
+                Start the Quiz
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* QUIZ SCREEN */}
+        {screen === 'quiz' && (
+          <div className="max-w-2xl w-full animate-slide-up">
+            {/* Progress bar */}
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-2 px-2">
+                <span className="text-sm font-medium text-gray-700">
+                  Question {currentQuestionIndex + 1} of {QUESTION_BANK.length}
+                </span>
+                <span className="text-sm font-medium text-pink-600">
+                  {Math.round(progress)}%
+                </span>
+              </div>
+              <div className="w-full h-3 bg-white/60 rounded-full overflow-hidden shadow-inner">
+                <div 
+                  className="h-full bg-gradient-to-r from-pink-500 to-rose-500 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Question card */}
+            <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-12 animate-scale-in">
+              <div className="text-center mb-8">
+                <div className="inline-block bg-pink-100 rounded-full p-4 mb-4">
+                  <Heart className="w-8 h-8 text-pink-500 fill-pink-500" />
+                </div>
+                <h2 className="text-2xl md:text-3xl font-playfair font-bold text-gray-800 mb-2">
+                  What would {adminName} answer?
+                </h2>
+                <p className="text-xl md:text-2xl font-medium text-gray-700 mb-3">
+                  {QUESTION_BANK[currentQuestionIndex].question}
+                </p>
+                <p className="text-gray-500 text-sm">
+                  Think from {adminName}'s perspective 💖
+                </p>
+              </div>
+
+              {/* Answer options */}
+              <div className="space-y-4">
+                {QUESTION_BANK[currentQuestionIndex].options.map((option, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleAnswerSelect(index)}
+                    className="w-full bg-gradient-to-r from-pink-50 to-rose-50 hover:from-pink-100 hover:to-rose-100 border-2 border-pink-200 hover:border-pink-400 text-gray-800 font-medium py-4 px-6 rounded-full shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200 text-left"
+                  >
+                    <span className="flex items-center gap-3">
+                      <span className="flex-shrink-0 w-8 h-8 bg-pink-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                        {String.fromCharCode(65 + index)}
+                      </span>
+                      <span className="text-base md:text-lg">{option}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -1403,10 +674,10 @@ function QuizGame() {
                 <div className="text-center animate-pulse">
                   <Sparkles className="w-16 h-16 text-pink-500 mx-auto mb-6 animate-spin" />
                   <h2 className="text-3xl font-playfair font-bold text-gray-800 mb-4">
-                    Calculating Your Love Score...
+                    Calculating Your Score...
                   </h2>
                   <p className="text-gray-600">
-                    Analyzing the chemistry between {playerName} and {partnerName}
+                    Comparing your answers with {adminName}'s
                   </p>
                 </div>
               )}
@@ -1417,7 +688,7 @@ function QuizGame() {
                   <div className="mb-8">
                     <Heart className="w-20 h-20 text-pink-500 fill-pink-500 mx-auto mb-6" />
                     <h2 className="text-2xl font-playfair font-bold text-gray-700 mb-2">
-                      {playerName} & {partnerName}
+                      {loverName} & {adminName}
                     </h2>
                     <h3 className="text-6xl md:text-8xl font-playfair font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 mb-4">
                       {score}%
@@ -1431,6 +702,9 @@ function QuizGame() {
                   {revealPhase >= 2 && (
                     <div className="animate-slide-up">
                       <p className="text-gray-700 text-lg mb-8 leading-relaxed">
+                        {loverName}, you got {Math.round(score / 10)} out of 10 questions right about {adminName}!
+                      </p>
+                      <p className="text-gray-600 text-base mb-8">
                         {compatibility.description}
                       </p>
 
@@ -1438,37 +712,30 @@ function QuizGame() {
                       <div className="grid grid-cols-2 gap-4 mb-8">
                         <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl p-4 border border-pink-200">
                           <div className="text-3xl font-bold text-pink-600 mb-1">
-                            {questions.length}
+                            {Math.round(score / 10)}/10
                           </div>
                           <div className="text-sm text-gray-600 font-medium">
-                            Questions Answered
+                            Correct Answers
                           </div>
                         </div>
                         <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl p-4 border border-pink-200">
                           <div className="text-3xl font-bold text-pink-600 mb-1">
-                            {Math.round((Date.now() - startTime) / 1000)}s
+                            {score}%
                           </div>
                           <div className="text-sm text-gray-600 font-medium">
-                            Total Time
+                            Compatibility
                           </div>
                         </div>
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="flex flex-col gap-4">
                         <button
                           onClick={handlePlayAgain}
-                          className="flex-1 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-4 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2"
+                          className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-4 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2"
                         >
                           <RotateCcw className="w-5 h-5" />
-                          Play Again
-                        </button>
-                        <button
-                          onClick={handleShare}
-                          className="flex-1 bg-white border-2 border-pink-500 text-pink-600 hover:bg-pink-50 font-semibold py-4 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2"
-                        >
-                          <Share2 className="w-5 h-5" />
-                          Share Results
+                          Create Your Own Quiz
                         </button>
                       </div>
 
@@ -1490,19 +757,14 @@ function QuizGame() {
 // PUBLIC_INTERFACE
 /**
  * Main App Component with Routing
- * Provides navigation between the quiz game, admin panel, and user calculator
+ * Provides navigation between admin quiz and lover quiz
  */
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<QuizGame />} />
-        <Route path="/admin" element={
-          <AdminPINGate>
-            <AdminPanel />
-          </AdminPINGate>
-        } />
-        <Route path="/calculator" element={<UserCalculator />} />
+        <Route path="/" element={<AdminQuiz />} />
+        <Route path="/lover" element={<LoverQuiz />} />
       </Routes>
     </Router>
   );
