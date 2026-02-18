@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
-import { Heart, Sparkles, Share2, RotateCcw, Settings, Plus, Trash2, Edit2, Save, X, Calculator, CheckSquare, Square, Lock, Unlock, LogOut, Key } from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Heart, Sparkles, Share2, RotateCcw, Settings, Plus, Trash2, Edit2, Save, X, Calculator, CheckSquare, Square, Lock, Unlock, LogOut, Key, Link2, Copy, CheckCircle } from 'lucide-react';
 
 // Question bank with romantic couples questions
 const QUESTION_BANK = [
@@ -81,6 +81,43 @@ const QUESTION_BANK = [
   }
 ];
 
+// PUBLIC_INTERFACE
+/**
+ * Encode admin options configuration to URL-safe base64 string
+ * @param {Array} options - Array of option objects with id, label, and value
+ * @returns {string} Base64-encoded configuration string
+ */
+const encodeConfig = (options) => {
+  try {
+    const config = { options, version: 1 };
+    const jsonString = JSON.stringify(config);
+    return btoa(encodeURIComponent(jsonString));
+  } catch (e) {
+    console.error('Failed to encode config:', e);
+    return '';
+  }
+};
+
+// PUBLIC_INTERFACE
+/**
+ * Decode admin options configuration from URL-safe base64 string
+ * @param {string} encodedConfig - Base64-encoded configuration string
+ * @returns {Array|null} Array of option objects or null if decode fails
+ */
+const decodeConfig = (encodedConfig) => {
+  try {
+    const jsonString = decodeURIComponent(atob(encodedConfig));
+    const config = JSON.parse(jsonString);
+    if (config.version === 1 && Array.isArray(config.options)) {
+      return config.options;
+    }
+    return null;
+  } catch (e) {
+    console.error('Failed to decode config:', e);
+    return null;
+  }
+};
+
 // Compatibility labels based on score ranges
 const getCompatibilityLabel = (score) => {
   if (score >= 90) return { label: "Soulmates 💕", color: "text-pink-600", description: "You two are absolutely perfect for each other!" };
@@ -130,19 +167,42 @@ const Sparkle = ({ delay, top, left }) => (
 function UserCalculator() {
   const [options, setOptions] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [showImportSuccess, setShowImportSuccess] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  // Load options from localStorage on mount
+  // Load options from localStorage on mount, or from URL if shared config present
   useEffect(() => {
-    const stored = localStorage.getItem('adminOptions');
-    if (stored) {
-      try {
-        setOptions(JSON.parse(stored));
-      } catch (e) {
-        console.error('Failed to parse stored options:', e);
+    const configParam = searchParams.get('config');
+    
+    if (configParam) {
+      // Shared config in URL - decode and import
+      const decodedOptions = decodeConfig(configParam);
+      if (decodedOptions && decodedOptions.length > 0) {
+        setOptions(decodedOptions);
+        localStorage.setItem('adminOptions', JSON.stringify(decodedOptions));
+        setShowImportSuccess(true);
+        
+        // Clear the URL parameter after import
+        navigate('/calculator', { replace: true });
+        
+        // Hide success message after 3 seconds
+        setTimeout(() => setShowImportSuccess(false), 3000);
+      } else {
+        console.error('Failed to import shared configuration');
+      }
+    } else {
+      // Normal load from localStorage
+      const stored = localStorage.getItem('adminOptions');
+      if (stored) {
+        try {
+          setOptions(JSON.parse(stored));
+        } catch (e) {
+          console.error('Failed to parse stored options:', e);
+        }
       }
     }
-  }, []);
+  }, [searchParams, navigate]);
 
   // Toggle option selection
   const toggleOption = (optionId) => {
@@ -184,6 +244,18 @@ function UserCalculator() {
       {/* Main content */}
       <div className="relative z-10 min-h-screen p-4 md:p-8">
         <div className="max-w-4xl mx-auto">
+          {/* Import Success Banner */}
+          {showImportSuccess && (
+            <div className="mb-6 bg-green-50 border-2 border-green-300 rounded-3xl p-4 shadow-lg animate-scale-in">
+              <div className="flex items-center justify-center gap-2">
+                <CheckCircle className="w-6 h-6 text-green-600" />
+                <p className="text-green-700 font-semibold">
+                  ✨ Configuration imported successfully! You can now use the options.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Header */}
           <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-8 mb-6">
             <div className="flex items-center justify-between mb-4">
@@ -629,6 +701,9 @@ function AdminPanel() {
   const [editValue, setEditValue] = useState('');
   const [newLabel, setNewLabel] = useState('');
   const [newValue, setNewValue] = useState('');
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  const [copied, setCopied] = useState(false);
   const navigate = useNavigate();
 
   // Load options from localStorage on mount
@@ -718,6 +793,34 @@ function AdminPanel() {
     }
   };
 
+  // Generate shareable link
+  const handleGenerateShareLink = () => {
+    if (options.length === 0) {
+      alert('Please add at least one option before sharing');
+      return;
+    }
+
+    const encodedConfig = encodeConfig(options);
+    const baseUrl = window.location.origin;
+    const fullUrl = `${baseUrl}/calculator?config=${encodedConfig}`;
+    
+    setShareUrl(fullUrl);
+    setShowShareModal(true);
+    setCopied(false);
+  };
+
+  // Copy share link to clipboard
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      alert('Failed to copy link. Please copy manually.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-yellow-50 font-quicksand relative overflow-hidden">
       {/* Floating hearts background */}
@@ -735,19 +838,29 @@ function AdminPanel() {
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-8 mb-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
               <div className="flex items-center gap-3">
                 <Settings className="w-8 h-8 text-pink-500" />
                 <h1 className="text-3xl md:text-4xl font-playfair font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600">
                   Admin Panel
                 </h1>
               </div>
-              <button
-                onClick={() => navigate('/')}
-                className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-2 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-              >
-                Back to Quiz
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleGenerateShareLink}
+                  className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-semibold py-2 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+                  title="Share Configuration"
+                >
+                  <Link2 className="w-5 h-5" />
+                  Share Config
+                </button>
+                <button
+                  onClick={() => navigate('/')}
+                  className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-2 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                >
+                  Back to Quiz
+                </button>
+              </div>
             </div>
             <p className="text-gray-600">
               Manage custom options for your quiz. Each option has a label and a numeric value.
@@ -895,11 +1008,87 @@ function AdminPanel() {
           <div className="mt-6 bg-pink-50/80 backdrop-blur-sm rounded-2xl p-4 border-2 border-pink-200">
             <p className="text-gray-700 text-sm">
               <strong>💡 Tip:</strong> Options are stored locally in your browser and will persist across page refreshes. 
-              Users can select these options in the calculator to see the total sum.
+              Users can select these options in the calculator to see the total sum. Use "Share Config" to create a link that others can use to import your configuration on any device.
             </p>
           </div>
         </div>
       </div>
+
+      {/* Share Config Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full animate-scale-in">
+            <div className="text-center mb-6">
+              <div className="inline-block bg-blue-100 rounded-full p-3 mb-3">
+                <Link2 className="w-8 h-8 text-blue-500" />
+              </div>
+              <h2 className="text-2xl font-playfair font-bold text-gray-800 mb-2">
+                Share Your Configuration
+              </h2>
+              <p className="text-gray-600 text-sm">
+                Copy this link to share your admin options with others. They can open it on any device to import the configuration.
+              </p>
+            </div>
+
+            {/* Share URL Display */}
+            <div className="mb-6">
+              <div className="bg-gray-50 border-2 border-gray-200 rounded-2xl p-4 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 overflow-hidden">
+                    <p className="text-sm text-gray-600 mb-1 font-medium">Shareable Link:</p>
+                    <p className="text-gray-800 text-sm font-mono break-all">
+                      {shareUrl}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Copy Button */}
+              <button
+                onClick={handleCopyLink}
+                className={`w-full font-semibold py-3 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2 ${
+                  copied
+                    ? 'bg-green-500 hover:bg-green-600 text-white'
+                    : 'bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white'
+                }`}
+              >
+                {copied ? (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    Copied to Clipboard!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-5 h-5" />
+                    Copy Link to Clipboard
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Info Box */}
+            <div className="mb-6 bg-blue-50 rounded-2xl p-4 border border-blue-200">
+              <p className="text-gray-700 text-sm mb-2">
+                <strong>📋 How it works:</strong>
+              </p>
+              <ul className="text-gray-600 text-xs space-y-1 list-disc list-inside">
+                <li>The link contains your current options configuration encoded in the URL</li>
+                <li>Anyone opening this link will automatically import your options into their browser</li>
+                <li>The configuration will be saved to their localStorage and they'll be redirected to the calculator</li>
+                <li>Perfect for sharing custom setups across devices or with other users</li>
+              </ul>
+            </div>
+
+            {/* Close Button */}
+            <button
+              onClick={() => setShowShareModal(false)}
+              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-6 rounded-full transition-all"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
