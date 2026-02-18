@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Heart, Sparkles, Share2, RotateCcw } from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { Heart, Sparkles, Share2, RotateCcw, Settings, Plus, Trash2, Edit2, Save, X } from 'lucide-react';
 
 // Question bank with romantic couples questions
 const QUESTION_BANK = [
@@ -122,13 +123,298 @@ const Sparkle = ({ delay, top, left }) => (
 
 // PUBLIC_INTERFACE
 /**
- * Main Lover Game App Component
- * A romantic couples quiz application with three-screen flow:
- * 1. Welcome/Name Entry Screen
- * 2. Quiz Screen (10 questions with progress)
- * 3. Score Reveal Screen with animations and results
+ * Admin Panel Component
+ * Allows admin to create and manage custom options with labels and numeric values
+ * Data is persisted in localStorage
  */
-function App() {
+function AdminPanel() {
+  const [options, setOptions] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [editValue, setEditValue] = useState('');
+  const [newLabel, setNewLabel] = useState('');
+  const [newValue, setNewValue] = useState('');
+  const navigate = useNavigate();
+
+  // Load options from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('adminOptions');
+    if (stored) {
+      try {
+        setOptions(JSON.parse(stored));
+      } catch (e) {
+        console.error('Failed to parse stored options:', e);
+      }
+    }
+  }, []);
+
+  // Save options to localStorage whenever they change
+  useEffect(() => {
+    if (options.length > 0) {
+      localStorage.setItem('adminOptions', JSON.stringify(options));
+    }
+  }, [options]);
+
+  // Add new option
+  const handleAddOption = () => {
+    if (!newLabel.trim() || !newValue.trim()) {
+      alert('Please enter both label and value');
+      return;
+    }
+
+    const numericValue = parseFloat(newValue);
+    if (isNaN(numericValue)) {
+      alert('Value must be a number');
+      return;
+    }
+
+    const newOption = {
+      id: Date.now(),
+      label: newLabel.trim(),
+      value: numericValue
+    };
+
+    setOptions(prev => [...prev, newOption]);
+    setNewLabel('');
+    setNewValue('');
+  };
+
+  // Start editing an option
+  const handleEditStart = (option) => {
+    setEditingId(option.id);
+    setEditLabel(option.label);
+    setEditValue(option.value.toString());
+  };
+
+  // Save edited option
+  const handleEditSave = () => {
+    if (!editLabel.trim() || !editValue.trim()) {
+      alert('Please enter both label and value');
+      return;
+    }
+
+    const numericValue = parseFloat(editValue);
+    if (isNaN(numericValue)) {
+      alert('Value must be a number');
+      return;
+    }
+
+    setOptions(prev => prev.map(opt => 
+      opt.id === editingId 
+        ? { ...opt, label: editLabel.trim(), value: numericValue }
+        : opt
+    ));
+    setEditingId(null);
+    setEditLabel('');
+    setEditValue('');
+  };
+
+  // Cancel editing
+  const handleEditCancel = () => {
+    setEditingId(null);
+    setEditLabel('');
+    setEditValue('');
+  };
+
+  // Delete option
+  const handleDelete = (id) => {
+    if (window.confirm('Are you sure you want to delete this option?')) {
+      setOptions(prev => prev.filter(opt => opt.id !== id));
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-yellow-50 font-quicksand relative overflow-hidden">
+      {/* Floating hearts background */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <FloatingHeart delay={0} size="small" left={10} />
+        <FloatingHeart delay={1} size="medium" left={25} />
+        <FloatingHeart delay={2} size="large" left={45} />
+        <FloatingHeart delay={1.5} size="small" left={65} />
+        <FloatingHeart delay={2.5} size="medium" left={80} />
+        <FloatingHeart delay={0.5} size="small" left={90} />
+      </div>
+
+      {/* Main content */}
+      <div className="relative z-10 min-h-screen p-4 md:p-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-8 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <Settings className="w-8 h-8 text-pink-500" />
+                <h1 className="text-3xl md:text-4xl font-playfair font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600">
+                  Admin Panel
+                </h1>
+              </div>
+              <button
+                onClick={() => navigate('/')}
+                className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-2 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+              >
+                Back to Quiz
+              </button>
+            </div>
+            <p className="text-gray-600">
+              Manage custom options for your quiz. Each option has a label and a numeric value.
+            </p>
+          </div>
+
+          {/* Add New Option Form */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-8 mb-6">
+            <h2 className="text-2xl font-playfair font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <Plus className="w-6 h-6 text-pink-500" />
+              Add New Option
+            </h2>
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <label className="block text-gray-700 font-medium mb-2 text-sm">
+                  Option Label
+                </label>
+                <input
+                  type="text"
+                  value={newLabel}
+                  onChange={(e) => setNewLabel(e.target.value)}
+                  placeholder="e.g., Romantic Dinner"
+                  className="w-full px-4 py-3 rounded-full border-2 border-pink-200 focus:border-pink-400 focus:outline-none transition-colors text-gray-800 placeholder-gray-400"
+                  onKeyPress={(e) => e.key === 'Enter' && document.getElementById('new-value-input').focus()}
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-gray-700 font-medium mb-2 text-sm">
+                  Numeric Value
+                </label>
+                <input
+                  id="new-value-input"
+                  type="number"
+                  step="0.01"
+                  value={newValue}
+                  onChange={(e) => setNewValue(e.target.value)}
+                  placeholder="e.g., 85"
+                  className="w-full px-4 py-3 rounded-full border-2 border-pink-200 focus:border-pink-400 focus:outline-none transition-colors text-gray-800 placeholder-gray-400"
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddOption()}
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={handleAddOption}
+                  className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Options List */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-8">
+            <h2 className="text-2xl font-playfair font-bold text-gray-800 mb-4">
+              Current Options ({options.length})
+            </h2>
+            
+            {options.length === 0 ? (
+              <div className="text-center py-12">
+                <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg">No options yet. Add your first option above!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {options.map((option) => (
+                  <div
+                    key={option.id}
+                    className="bg-gradient-to-r from-pink-50 to-rose-50 border-2 border-pink-200 rounded-2xl p-4"
+                  >
+                    {editingId === option.id ? (
+                      // Edit mode
+                      <div className="flex flex-col md:flex-row gap-3">
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={editLabel}
+                            onChange={(e) => setEditLabel(e.target.value)}
+                            className="w-full px-4 py-2 rounded-full border-2 border-pink-300 focus:border-pink-500 focus:outline-none transition-colors text-gray-800"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="w-full px-4 py-2 rounded-full border-2 border-pink-300 focus:border-pink-500 focus:outline-none transition-colors text-gray-800"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleEditSave}
+                            className="bg-green-500 hover:bg-green-600 text-white p-2 rounded-full shadow-md hover:shadow-lg transition-all"
+                            title="Save"
+                          >
+                            <Save className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={handleEditCancel}
+                            className="bg-gray-500 hover:bg-gray-600 text-white p-2 rounded-full shadow-md hover:shadow-lg transition-all"
+                            title="Cancel"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      // View mode
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="text-lg font-semibold text-gray-800">
+                            {option.label}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            Value: <span className="font-bold text-pink-600">{option.value}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditStart(option)}
+                            className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full shadow-md hover:shadow-lg transition-all"
+                            title="Edit"
+                          >
+                            <Edit2 className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(option.id)}
+                            className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-md hover:shadow-lg transition-all"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Instructions */}
+          <div className="mt-6 bg-pink-50/80 backdrop-blur-sm rounded-2xl p-4 border-2 border-pink-200">
+            <p className="text-gray-700 text-sm">
+              <strong>💡 Tip:</strong> Options are stored locally in your browser and will persist across page refreshes. 
+              You can use these options in custom quiz flows or calculators.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// PUBLIC_INTERFACE
+/**
+ * Quiz Game Component
+ * The main quiz flow with welcome screen, questions, and results
+ */
+function QuizGame() {
   // Game state
   const [screen, setScreen] = useState('welcome'); // 'welcome', 'quiz', 'results'
   const [playerName, setPlayerName] = useState('');
@@ -140,6 +426,7 @@ function App() {
   const [questionStartTime, setQuestionStartTime] = useState(null);
   const [score, setScore] = useState(0);
   const [revealPhase, setRevealPhase] = useState(0); // 0: calculating, 1: show score, 2: show details
+  const navigate = useNavigate();
 
   // Initialize quiz with randomized questions
   const initializeQuiz = useCallback(() => {
@@ -260,6 +547,17 @@ function App() {
         <FloatingHeart delay={1.5} size="small" left={65} />
         <FloatingHeart delay={2.5} size="medium" left={80} />
         <FloatingHeart delay={0.5} size="small" left={90} />
+      </div>
+
+      {/* Admin button */}
+      <div className="absolute top-4 right-4 z-20">
+        <button
+          onClick={() => navigate('/admin')}
+          className="bg-white/80 backdrop-blur-sm hover:bg-white text-pink-600 p-3 rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200"
+          title="Admin Panel"
+        >
+          <Settings className="w-6 h-6" />
+        </button>
       </div>
 
       {/* Main content container */}
@@ -495,6 +793,22 @@ function App() {
         )}
       </div>
     </div>
+  );
+}
+
+// PUBLIC_INTERFACE
+/**
+ * Main App Component with Routing
+ * Provides navigation between the quiz game and admin panel
+ */
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<QuizGame />} />
+        <Route path="/admin" element={<AdminPanel />} />
+      </Routes>
+    </Router>
   );
 }
 
