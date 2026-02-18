@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
-import { Heart, Sparkles, Share2, RotateCcw, Copy, CheckCircle } from 'lucide-react';
+import { Heart, Sparkles, Share2, RotateCcw, Copy, CheckCircle, HeartCrack } from 'lucide-react';
 
 // Question bank with 10 romantic couples questions
 const QUESTION_BANK = [
@@ -90,12 +90,12 @@ const decodeQuizData = (encodedData) => {
 
 // Compatibility labels based on score percentage
 const getCompatibilityLabel = (score) => {
-  if (score >= 90) return { label: "Soulmates 💕", color: "text-pink-600", description: "You two are absolutely perfect for each other!" };
-  if (score >= 80) return { label: "Perfect Match 💖", color: "text-rose-500", description: "Your connection is incredibly strong!" };
-  if (score >= 70) return { label: "Great Chemistry ✨", color: "text-pink-500", description: "You have amazing potential together!" };
-  if (score >= 60) return { label: "Strong Bond 💗", color: "text-rose-400", description: "You share a beautiful connection!" };
-  if (score >= 50) return { label: "Growing Together 🌸", color: "text-pink-400", description: "Your love is blossoming nicely!" };
-  return { label: "Keep Nurturing 🌱", color: "text-pink-300", description: "Every relationship grows at its own pace!" };
+  if (score >= 90) return { label: "Soulmates 💕", color: "text-pink-600", bgGradient: "from-pink-100 to-rose-100", description: "You two are absolutely perfect for each other!" };
+  if (score >= 80) return { label: "Perfect Match 💖", color: "text-rose-500", bgGradient: "from-rose-100 to-pink-100", description: "Your connection is incredibly strong!" };
+  if (score >= 70) return { label: "Great Chemistry ✨", color: "text-pink-500", bgGradient: "from-pink-50 to-rose-50", description: "You have amazing potential together!" };
+  if (score >= 60) return { label: "Strong Bond 💗", color: "text-rose-400", bgGradient: "from-rose-50 to-pink-50", description: "You share a beautiful connection!" };
+  if (score >= 50) return { label: "Growing Together 🌸", color: "text-pink-400", bgGradient: "from-pink-50 to-yellow-50", description: "Your love is blossoming nicely!" };
+  return { label: "Room to Grow 💔", color: "text-gray-600", bgGradient: "from-gray-100 to-slate-100", description: "Every relationship needs work and understanding!" };
 };
 
 // Floating heart component for background animation
@@ -125,6 +125,49 @@ const Sparkle = ({ delay, top, left }) => (
     }}
   >
     ✨
+  </div>
+);
+
+// Confetti particle component for high scores
+const ConfettiParticle = ({ delay, startX, color }) => (
+  <div 
+    className={`absolute w-2 h-2 ${color} rounded-full`}
+    style={{
+      left: `${startX}%`,
+      top: '0%',
+      animation: `confettiFall 3s ease-out infinite`,
+      animationDelay: `${delay}s`
+    }}
+  />
+);
+
+// Broken heart piece component for low scores
+const BrokenHeartPiece = ({ side, delay }) => (
+  <div 
+    className="absolute text-6xl opacity-80"
+    style={{
+      left: side === 'left' ? '35%' : '55%',
+      top: '30%',
+      animation: `heartBreak${side === 'left' ? 'Left' : 'Right'} 1.5s ease-out forwards`,
+      animationDelay: `${delay}s`
+    }}
+  >
+    {side === 'left' ? '💔' : ''}
+  </div>
+);
+
+// Crying emoji component for low scores
+const CryingEmoji = ({ delay, position }) => (
+  <div 
+    className="absolute text-3xl opacity-60"
+    style={{
+      left: `${position}%`,
+      top: '60%',
+      animation: `tearDrop 2s ease-in infinite`,
+      animationDelay: `${delay}s`
+    }}
+  >
+    😢
   </div>
 );
 
@@ -261,7 +304,7 @@ function AdminQuiz() {
               {/* Header */}
               <div className="text-center mb-8">
                 <div className="flex justify-center mb-4">
-                  <Heart className="text-pink-500 w-16 h-16 fill-pink-500" />
+                  <Heart className="text-pink-500 w-16 h-16 fill-pink-500 animate-pulse" />
                 </div>
                 <h1 className="text-5xl md:text-6xl font-playfair font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 mb-4">
                   Lover Game
@@ -377,7 +420,7 @@ function AdminQuiz() {
             <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-12">
               <div className="text-center mb-8">
                 <div className="flex justify-center mb-4">
-                  <Share2 className="text-pink-500 w-16 h-16" />
+                  <Share2 className="text-pink-500 w-16 h-16 animate-bounce" />
                 </div>
                 <h1 className="text-4xl md:text-5xl font-playfair font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 mb-4">
                   Your Quiz is Ready!
@@ -551,6 +594,7 @@ function LoverQuiz() {
 
   const progress = QUESTION_BANK.length > 0 ? ((currentQuestionIndex + 1) / QUESTION_BANK.length) * 100 : 0;
   const compatibility = getCompatibilityLabel(score);
+  const isLowScore = score < 50;
 
   if (screen === 'loading') {
     return (
@@ -585,7 +629,7 @@ function LoverQuiz() {
               {/* Header */}
               <div className="text-center mb-8">
                 <div className="flex justify-center mb-4">
-                  <Heart className="text-pink-500 w-16 h-16 fill-pink-500" />
+                  <Heart className="text-pink-500 w-16 h-16 fill-pink-500 animate-pulse" />
                 </div>
                 <h1 className="text-5xl md:text-6xl font-playfair font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 mb-4">
                   Lover Game
@@ -702,16 +746,42 @@ function LoverQuiz() {
         {/* RESULTS SCREEN */}
         {screen === 'results' && (
           <div className="max-w-2xl w-full animate-fade-in">
-            <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-12 relative overflow-hidden">
-              {/* Sparkles decoration */}
-              {revealPhase >= 1 && (
+            <div className={`bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-12 relative overflow-hidden ${isLowScore && revealPhase >= 1 ? 'bg-gradient-to-br from-gray-50 to-slate-50' : ''}`}>
+              
+              {/* Animations based on score */}
+              {revealPhase >= 1 && !isLowScore && (
+                <>
+                  {/* Sparkles for good scores */}
+                  <div className="absolute inset-0 pointer-events-none">
+                    <Sparkle delay={0} top={10} left={15} />
+                    <Sparkle delay={0.3} top={20} left={85} />
+                    <Sparkle delay={0.6} top={80} left={10} />
+                    <Sparkle delay={0.9} top={85} left={90} />
+                    <Sparkle delay={0.2} top={50} left={5} />
+                    <Sparkle delay={0.8} top={50} left={95} />
+                  </div>
+                  {/* Confetti particles for high scores */}
+                  {score >= 70 && (
+                    <div className="absolute inset-0 pointer-events-none">
+                      <ConfettiParticle delay={0} startX={20} color="bg-pink-400" />
+                      <ConfettiParticle delay={0.5} startX={40} color="bg-rose-400" />
+                      <ConfettiParticle delay={1} startX={60} color="bg-yellow-400" />
+                      <ConfettiParticle delay={1.5} startX={80} color="bg-pink-300" />
+                      <ConfettiParticle delay={0.3} startX={30} color="bg-rose-300" />
+                      <ConfettiParticle delay={0.8} startX={70} color="bg-pink-500" />
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Heart-break animation for low scores */}
+              {revealPhase >= 1 && isLowScore && (
                 <div className="absolute inset-0 pointer-events-none">
-                  <Sparkle delay={0} top={10} left={15} />
-                  <Sparkle delay={0.3} top={20} left={85} />
-                  <Sparkle delay={0.6} top={80} left={10} />
-                  <Sparkle delay={0.9} top={85} left={90} />
-                  <Sparkle delay={0.2} top={50} left={5} />
-                  <Sparkle delay={0.8} top={50} left={95} />
+                  <BrokenHeartPiece side="left" delay={0} />
+                  <BrokenHeartPiece side="right" delay={0} />
+                  <CryingEmoji delay={0.5} position={25} />
+                  <CryingEmoji delay={1} position={75} />
+                  <CryingEmoji delay={1.5} position={50} />
                 </div>
               )}
 
@@ -725,6 +795,11 @@ function LoverQuiz() {
                   <p className="text-gray-600">
                     Comparing your answers with {adminName}'s
                   </p>
+                  <div className="mt-8 flex justify-center gap-2">
+                    <div className="w-3 h-3 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+                    <div className="w-3 h-3 bg-rose-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="w-3 h-3 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                  </div>
                 </div>
               )}
 
@@ -732,14 +807,22 @@ function LoverQuiz() {
               {revealPhase >= 1 && (
                 <div className="text-center animate-scale-in">
                   <div className="mb-8">
-                    <Heart className="w-20 h-20 text-pink-500 fill-pink-500 mx-auto mb-6" />
+                    {isLowScore ? (
+                      <HeartCrack className="w-20 h-20 text-gray-500 mx-auto mb-6 animate-pulse" />
+                    ) : (
+                      <Heart className={`w-20 h-20 text-pink-500 fill-pink-500 mx-auto mb-6 ${score >= 80 ? 'animate-bounce' : 'animate-pulse'}`} />
+                    )}
                     <h2 className="text-2xl font-playfair font-bold text-gray-700 mb-2">
                       {loverName} & {adminName}
                     </h2>
-                    <h3 className="text-6xl md:text-8xl font-playfair font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 mb-4">
+                    <h3 className={`text-6xl md:text-8xl font-playfair font-black mb-4 ${
+                      isLowScore 
+                        ? 'text-gray-600 animate-pulse' 
+                        : 'text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 animate-pulse'
+                    }`}>
                       {score}%
                     </h3>
-                    <div className={`text-3xl md:text-4xl font-bold ${compatibility.color} mb-2`}>
+                    <div className={`text-3xl md:text-4xl font-bold ${compatibility.color} mb-2 ${score >= 70 ? 'animate-bounce' : ''}`}>
                       {compatibility.label}
                     </div>
                   </div>
@@ -750,22 +833,33 @@ function LoverQuiz() {
                       <p className="text-gray-700 text-lg mb-8 leading-relaxed">
                         {loverName}, you got {Math.round(score / 10)} out of 10 questions right about {adminName}!
                       </p>
-                      <p className="text-gray-600 text-base mb-8">
+                      <p className={`text-base mb-8 ${isLowScore ? 'text-gray-600' : 'text-gray-700'}`}>
                         {compatibility.description}
                       </p>
 
+                      {isLowScore && (
+                        <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-6 animate-scale-in">
+                          <p className="text-blue-800 font-medium text-lg mb-2">
+                            💡 Don't worry!
+                          </p>
+                          <p className="text-blue-700 text-sm">
+                            Every relationship is unique and grows over time. Use this as an opportunity to learn more about each other and strengthen your bond! 💪❤️
+                          </p>
+                        </div>
+                      )}
+
                       {/* Stats */}
                       <div className="grid grid-cols-2 gap-4 mb-8">
-                        <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl p-4 border border-pink-200">
-                          <div className="text-3xl font-bold text-pink-600 mb-1">
+                        <div className={`bg-gradient-to-br ${compatibility.bgGradient} rounded-2xl p-4 border-2 ${isLowScore ? 'border-gray-300' : 'border-pink-200'} transform hover:scale-105 transition-transform`}>
+                          <div className={`text-3xl font-bold mb-1 ${isLowScore ? 'text-gray-700' : 'text-pink-600'}`}>
                             {Math.round(score / 10)}/10
                           </div>
                           <div className="text-sm text-gray-600 font-medium">
                             Correct Answers
                           </div>
                         </div>
-                        <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl p-4 border border-pink-200">
-                          <div className="text-3xl font-bold text-pink-600 mb-1">
+                        <div className={`bg-gradient-to-br ${compatibility.bgGradient} rounded-2xl p-4 border-2 ${isLowScore ? 'border-gray-300' : 'border-pink-200'} transform hover:scale-105 transition-transform`}>
+                          <div className={`text-3xl font-bold mb-1 ${isLowScore ? 'text-gray-700' : 'text-pink-600'}`}>
                             {score}%
                           </div>
                           <div className="text-sm text-gray-600 font-medium">
@@ -788,10 +882,10 @@ function LoverQuiz() {
                             return (
                               <div 
                                 key={index}
-                                className={`rounded-2xl p-4 border-2 ${
+                                className={`rounded-2xl p-4 border-2 transform hover:scale-102 transition-all ${
                                   isCorrect 
-                                    ? 'bg-green-50 border-green-300' 
-                                    : 'bg-rose-50 border-rose-300'
+                                    ? 'bg-green-50 border-green-300 hover:shadow-lg' 
+                                    : 'bg-rose-50 border-rose-300 hover:shadow-lg'
                                 }`}
                               >
                                 <div className="flex items-start gap-3 mb-3">
@@ -836,7 +930,11 @@ function LoverQuiz() {
                       <div className="flex flex-col gap-4">
                         <button
                           onClick={handlePlayAgain}
-                          className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-4 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2"
+                          className={`w-full font-semibold py-4 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2 ${
+                            isLowScore
+                              ? 'bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white'
+                              : 'bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white'
+                          }`}
                         >
                           <RotateCcw className="w-5 h-5" />
                           Create Your Own Quiz
@@ -844,7 +942,7 @@ function LoverQuiz() {
                       </div>
 
                       <p className="text-center text-gray-500 text-sm mt-6">
-                        Share your love story with the world! 💕
+                        {isLowScore ? 'Keep learning about each other! 💪❤️' : 'Share your love story with the world! 💕'}
                       </p>
                     </div>
                   )}
