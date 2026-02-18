@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
-import { Heart, Sparkles, Share2, RotateCcw, Settings, Plus, Trash2, Edit2, Save, X } from 'lucide-react';
+import { Heart, Sparkles, Share2, RotateCcw, Settings, Plus, Trash2, Edit2, Save, X, Calculator, CheckSquare, Square } from 'lucide-react';
 
 // Question bank with romantic couples questions
 const QUESTION_BANK = [
@@ -120,6 +120,199 @@ const Sparkle = ({ delay, top, left }) => (
     ✨
   </div>
 );
+
+// PUBLIC_INTERFACE
+/**
+ * User Calculator Component
+ * Allows users to select admin-configured options and see the running total sum
+ * Reads options from localStorage and provides multi-select functionality with reset/clear
+ */
+function UserCalculator() {
+  const [options, setOptions] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const navigate = useNavigate();
+
+  // Load options from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('adminOptions');
+    if (stored) {
+      try {
+        setOptions(JSON.parse(stored));
+      } catch (e) {
+        console.error('Failed to parse stored options:', e);
+      }
+    }
+  }, []);
+
+  // Toggle option selection
+  const toggleOption = (optionId) => {
+    setSelectedIds(prev => {
+      if (prev.includes(optionId)) {
+        return prev.filter(id => id !== optionId);
+      } else {
+        return [...prev, optionId];
+      }
+    });
+  };
+
+  // Calculate total sum
+  const calculateTotal = () => {
+    return options
+      .filter(opt => selectedIds.includes(opt.id))
+      .reduce((sum, opt) => sum + opt.value, 0);
+  };
+
+  // Reset/clear all selections
+  const handleReset = () => {
+    setSelectedIds([]);
+  };
+
+  const total = calculateTotal();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-yellow-50 font-quicksand relative overflow-hidden">
+      {/* Floating hearts background */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <FloatingHeart delay={0} size="small" left={10} />
+        <FloatingHeart delay={1} size="medium" left={25} />
+        <FloatingHeart delay={2} size="large" left={45} />
+        <FloatingHeart delay={1.5} size="small" left={65} />
+        <FloatingHeart delay={2.5} size="medium" left={80} />
+        <FloatingHeart delay={0.5} size="small" left={90} />
+      </div>
+
+      {/* Main content */}
+      <div className="relative z-10 min-h-screen p-4 md:p-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-8 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <Calculator className="w-8 h-8 text-pink-500" />
+                <h1 className="text-3xl md:text-4xl font-playfair font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600">
+                  Options Calculator
+                </h1>
+              </div>
+              <button
+                onClick={() => navigate('/')}
+                className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-2 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+              >
+                Back to Quiz
+              </button>
+            </div>
+            <p className="text-gray-600">
+              Select options to see your total sum. All values are configured by the admin.
+            </p>
+          </div>
+
+          {/* Total Display */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-8 mb-6">
+            <div className="text-center">
+              <div className="text-gray-600 text-lg mb-2">Current Total</div>
+              <div className="text-6xl md:text-8xl font-playfair font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 mb-4">
+                {total.toFixed(2)}
+              </div>
+              <div className="text-gray-500 text-sm">
+                {selectedIds.length} option{selectedIds.length !== 1 ? 's' : ''} selected
+              </div>
+            </div>
+
+            {/* Reset Button */}
+            {selectedIds.length > 0 && (
+              <div className="flex justify-center mt-6">
+                <button
+                  onClick={handleReset}
+                  className="bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-semibold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+                >
+                  <RotateCcw className="w-5 h-5" />
+                  Clear All Selections
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Options List */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-8">
+            <h2 className="text-2xl font-playfair font-bold text-gray-800 mb-4">
+              Available Options ({options.length})
+            </h2>
+            
+            {options.length === 0 ? (
+              <div className="text-center py-12">
+                <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg mb-4">No options available yet!</p>
+                <p className="text-gray-400 text-sm mb-6">
+                  An admin needs to add options first before you can use the calculator.
+                </p>
+                <button
+                  onClick={() => navigate('/admin')}
+                  className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 inline-flex items-center gap-2"
+                >
+                  <Settings className="w-5 h-5" />
+                  Go to Admin Panel
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {options.map((option) => {
+                  const isSelected = selectedIds.includes(option.id);
+                  return (
+                    <button
+                      key={option.id}
+                      onClick={() => toggleOption(option.id)}
+                      className={`w-full border-2 rounded-2xl p-4 transition-all duration-200 transform hover:scale-102 ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-pink-100 to-rose-100 border-pink-400 shadow-lg'
+                          : 'bg-gradient-to-r from-pink-50 to-rose-50 border-pink-200 hover:border-pink-300 shadow-md hover:shadow-lg'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className={`flex-shrink-0 ${isSelected ? 'text-pink-600' : 'text-gray-400'}`}>
+                            {isSelected ? (
+                              <CheckSquare className="w-6 h-6" />
+                            ) : (
+                              <Square className="w-6 h-6" />
+                            )}
+                          </div>
+                          <div className="text-left flex-1">
+                            <div className={`text-lg font-semibold ${isSelected ? 'text-gray-900' : 'text-gray-800'}`}>
+                              {option.label}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              Value: <span className={`font-bold ${isSelected ? 'text-pink-600' : 'text-pink-500'}`}>
+                                {option.value}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <div className="flex-shrink-0 ml-3">
+                            <div className="bg-pink-500 text-white rounded-full px-3 py-1 text-sm font-bold">
+                              Selected
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Instructions */}
+          <div className="mt-6 bg-pink-50/80 backdrop-blur-sm rounded-2xl p-4 border-2 border-pink-200">
+            <p className="text-gray-700 text-sm">
+              <strong>💡 How it works:</strong> Click on any option to select or deselect it. 
+              The total sum updates automatically based on your selections. Use the "Clear All Selections" button to start over.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // PUBLIC_INTERFACE
 /**
@@ -400,7 +593,7 @@ function AdminPanel() {
           <div className="mt-6 bg-pink-50/80 backdrop-blur-sm rounded-2xl p-4 border-2 border-pink-200">
             <p className="text-gray-700 text-sm">
               <strong>💡 Tip:</strong> Options are stored locally in your browser and will persist across page refreshes. 
-              You can use these options in custom quiz flows or calculators.
+              Users can select these options in the calculator to see the total sum.
             </p>
           </div>
         </div>
@@ -549,8 +742,15 @@ function QuizGame() {
         <FloatingHeart delay={0.5} size="small" left={90} />
       </div>
 
-      {/* Admin button */}
-      <div className="absolute top-4 right-4 z-20">
+      {/* Navigation buttons */}
+      <div className="absolute top-4 right-4 z-20 flex gap-2">
+        <button
+          onClick={() => navigate('/calculator')}
+          className="bg-white/80 backdrop-blur-sm hover:bg-white text-pink-600 p-3 rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200"
+          title="Calculator"
+        >
+          <Calculator className="w-6 h-6" />
+        </button>
         <button
           onClick={() => navigate('/admin')}
           className="bg-white/80 backdrop-blur-sm hover:bg-white text-pink-600 p-3 rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200"
@@ -799,7 +999,7 @@ function QuizGame() {
 // PUBLIC_INTERFACE
 /**
  * Main App Component with Routing
- * Provides navigation between the quiz game and admin panel
+ * Provides navigation between the quiz game, admin panel, and user calculator
  */
 function App() {
   return (
@@ -807,6 +1007,7 @@ function App() {
       <Routes>
         <Route path="/" element={<QuizGame />} />
         <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/calculator" element={<UserCalculator />} />
       </Routes>
     </Router>
   );
