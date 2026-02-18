@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
-import { Heart, Sparkles, Share2, RotateCcw, Copy, CheckCircle, HeartCrack } from 'lucide-react';
+import { Heart, Sparkles, Share2, RotateCcw, Copy, CheckCircle, HeartCrack, Volume2, VolumeX } from 'lucide-react';
 
 // Question bank with 10 romantic couples questions
 const QUESTION_BANK = [
@@ -55,6 +55,119 @@ const QUESTION_BANK = [
     options: ["Words", "Touch", "Gifts", "Time"]
   }
 ];
+
+// PUBLIC_INTERFACE
+/**
+ * Custom hook for managing sound effects using Web Audio API
+ * Generates simple synthesized tones for different game events
+ * @returns {Object} Sound player functions and mute state
+ */
+const useSoundEffects = () => {
+  const [isMuted, setIsMuted] = useState(() => {
+    // Load mute preference from localStorage
+    const saved = localStorage.getItem('loverGameMuted');
+    return saved === 'true';
+  });
+  const audioContextRef = useRef(null);
+
+  // Initialize AudioContext on first user interaction
+  const initAudioContext = useCallback(() => {
+    if (!audioContextRef.current) {
+      try {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (e) {
+        console.warn('Web Audio API not supported:', e);
+      }
+    }
+    return audioContextRef.current;
+  }, []);
+
+  // Play a simple tone with specified parameters
+  const playTone = useCallback((frequency, duration, type = 'sine', volume = 0.3) => {
+    if (isMuted) return;
+    
+    const context = initAudioContext();
+    if (!context) return;
+
+    try {
+      // Resume context if suspended (browser autoplay policy)
+      if (context.state === 'suspended') {
+        context.resume();
+      }
+
+      const oscillator = context.createOscillator();
+      const gainNode = context.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(context.destination);
+
+      oscillator.frequency.value = frequency;
+      oscillator.type = type;
+
+      // Envelope for smooth sound
+      gainNode.gain.setValueAtTime(0, context.currentTime);
+      gainNode.gain.linearRampToValueAtTime(volume, context.currentTime + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + duration);
+
+      oscillator.start(context.currentTime);
+      oscillator.stop(context.currentTime + duration);
+    } catch (e) {
+      console.warn('Error playing sound:', e);
+    }
+  }, [isMuted, initAudioContext]);
+
+  // Button tap sound - short pleasant beep
+  const playButtonTap = useCallback(() => {
+    playTone(800, 0.08, 'sine', 0.2);
+  }, [playTone]);
+
+  // Success sound - ascending cheerful notes
+  const playSuccess = useCallback(() => {
+    playTone(523.25, 0.15, 'sine', 0.25); // C5
+    setTimeout(() => playTone(659.25, 0.15, 'sine', 0.25), 80); // E5
+    setTimeout(() => playTone(783.99, 0.25, 'sine', 0.25), 160); // G5
+  }, [playTone]);
+
+  // Fail sound - descending sad notes
+  const playFail = useCallback(() => {
+    playTone(493.88, 0.15, 'sine', 0.25); // B4
+    setTimeout(() => playTone(392.00, 0.15, 'sine', 0.25), 80); // G4
+    setTimeout(() => playTone(329.63, 0.3, 'sine', 0.25), 160); // E4
+  }, [playTone]);
+
+  // Reveal sound - magical ascending arpeggio
+  const playReveal = useCallback(() => {
+    playTone(523.25, 0.12, 'sine', 0.2); // C5
+    setTimeout(() => playTone(659.25, 0.12, 'sine', 0.2), 60); // E5
+    setTimeout(() => playTone(783.99, 0.12, 'sine', 0.2), 120); // G5
+    setTimeout(() => playTone(1046.50, 0.25, 'sine', 0.25), 180); // C6
+  }, [playTone]);
+
+  // Heartbreak sound - dramatic low notes
+  const playHeartbreak = useCallback(() => {
+    playTone(220.00, 0.2, 'square', 0.2); // A3
+    setTimeout(() => playTone(196.00, 0.3, 'square', 0.2), 100); // G3
+  }, [playTone]);
+
+  // Toggle mute and save preference
+  const toggleMute = useCallback(() => {
+    setIsMuted(prev => {
+      const newValue = !prev;
+      localStorage.setItem('loverGameMuted', String(newValue));
+      return newValue;
+    });
+  }, []);
+
+  return {
+    isMuted,
+    toggleMute,
+    playButtonTap,
+    playSuccess,
+    playFail,
+    playReveal,
+    playHeartbreak
+  };
+};
 
 // PUBLIC_INTERFACE
 /**
@@ -173,6 +286,35 @@ const CryingEmoji = ({ delay, position }) => (
 
 // PUBLIC_INTERFACE
 /**
+ * Mute Toggle Button Component
+ * Floating button to toggle sound effects on/off
+ */
+const MuteToggle = ({ isMuted, onToggle, onSound }) => {
+  const handleClick = () => {
+    if (!isMuted) {
+      onSound(); // Play sound before muting
+    }
+    onToggle();
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      className="fixed top-4 right-4 z-50 bg-white/90 hover:bg-white backdrop-blur-sm rounded-full p-3 shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 border-2 border-pink-200 hover:border-pink-400"
+      aria-label={isMuted ? 'Unmute sounds' : 'Mute sounds'}
+      title={isMuted ? 'Unmute sounds' : 'Mute sounds'}
+    >
+      {isMuted ? (
+        <VolumeX className="w-6 h-6 text-gray-500" />
+      ) : (
+        <Volume2 className="w-6 h-6 text-pink-500" />
+      )}
+    </button>
+  );
+};
+
+// PUBLIC_INTERFACE
+/**
  * Admin Quiz Component
  * Admin enters their name and answers 10 questions, then generates a shareable link
  */
@@ -184,9 +326,13 @@ function AdminQuiz() {
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
 
+  // Sound effects hook
+  const { isMuted, toggleMute, playButtonTap, playSuccess, playReveal } = useSoundEffects();
+
   // Handle start quiz
   const handleStartQuiz = () => {
     if (adminName.trim()) {
+      playButtonTap();
       setScreen('quiz');
       setCurrentQuestionIndex(0);
       setAnswers([]);
@@ -195,6 +341,7 @@ function AdminQuiz() {
 
   // Handle answer selection
   const handleAnswerSelect = (answerIndex) => {
+    playButtonTap();
     const newAnswers = [...answers, answerIndex];
     setAnswers(newAnswers);
 
@@ -204,6 +351,7 @@ function AdminQuiz() {
     } else {
       // Generate share link
       generateShareLink(newAnswers);
+      playSuccess();
       setScreen('share');
     }
   };
@@ -222,6 +370,7 @@ function AdminQuiz() {
 
   // Copy share link to clipboard with multiple fallback methods
   const handleCopyLink = async () => {
+    playButtonTap();
     try {
       // Method 1: Modern Clipboard API (preferred)
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -272,6 +421,7 @@ function AdminQuiz() {
 
   // Reset and start over
   const handleStartOver = () => {
+    playButtonTap();
     setScreen('welcome');
     setAdminName('');
     setCurrentQuestionIndex(0);
@@ -284,6 +434,9 @@ function AdminQuiz() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-yellow-50 font-quicksand relative overflow-hidden">
+      {/* Mute Toggle Button */}
+      <MuteToggle isMuted={isMuted} onToggle={toggleMute} onSound={playButtonTap} />
+
       {/* Floating hearts background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <FloatingHeart delay={0} size="small" left={10} />
@@ -516,6 +669,9 @@ function LoverQuiz() {
   const [score, setScore] = useState(0);
   const [revealPhase, setRevealPhase] = useState(0); // 0: calculating, 1: show score, 2: show details
 
+  // Sound effects hook
+  const { isMuted, toggleMute, playButtonTap, playSuccess, playFail, playReveal, playHeartbreak } = useSoundEffects();
+
   // Load admin quiz data from URL on mount
   useEffect(() => {
     const dataParam = searchParams.get('data');
@@ -539,6 +695,7 @@ function LoverQuiz() {
   // Handle start quiz
   const handleStartQuiz = () => {
     if (loverName.trim()) {
+      playButtonTap();
       setScreen('quiz');
       setCurrentQuestionIndex(0);
       setLoverAnswers([]);
@@ -547,6 +704,7 @@ function LoverQuiz() {
 
   // Handle answer selection
   const handleAnswerSelect = (answerIndex) => {
+    playButtonTap();
     const newAnswers = [...loverAnswers, answerIndex];
     setLoverAnswers(newAnswers);
 
@@ -572,11 +730,22 @@ function LoverQuiz() {
     setScore(percentage);
   };
 
-  // Reveal score with timed phases
+  // Reveal score with timed phases and sound effects
   useEffect(() => {
     if (screen === 'results') {
       // Phase 0: Calculating (2 seconds)
-      const timer1 = setTimeout(() => setRevealPhase(1), 2000);
+      const timer1 = setTimeout(() => {
+        setRevealPhase(1);
+        playReveal();
+        // Play success/fail sound based on score
+        if (score >= 50) {
+          setTimeout(() => playSuccess(), 500);
+        } else {
+          setTimeout(() => playHeartbreak(), 500);
+          setTimeout(() => playFail(), 800);
+        }
+      }, 2000);
+      
       // Phase 1: Show score (1.5 seconds)
       const timer2 = setTimeout(() => setRevealPhase(2), 3500);
       
@@ -585,10 +754,11 @@ function LoverQuiz() {
         clearTimeout(timer2);
       };
     }
-  }, [screen]);
+  }, [screen, score, playReveal, playSuccess, playFail, playHeartbreak]);
 
   // Play again - go back to home
   const handlePlayAgain = () => {
+    playButtonTap();
     navigate('/');
   };
 
@@ -609,6 +779,9 @@ function LoverQuiz() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-yellow-50 font-quicksand relative overflow-hidden">
+      {/* Mute Toggle Button */}
+      <MuteToggle isMuted={isMuted} onToggle={toggleMute} onSound={playButtonTap} />
+
       {/* Floating hearts background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <FloatingHeart delay={0} size="small" left={10} />
